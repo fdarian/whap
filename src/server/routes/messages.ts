@@ -2,6 +2,8 @@ import { Hono } from 'hono'
 import { validator } from 'hono/validator'
 import { getWebhookUrl } from '../config.ts'
 import { mockStore } from '../store/memory-store.ts'
+import { templateStore } from '../store/template-store.ts'
+import type { Template } from '../store/template-store.ts'
 import type {
 	WebhookPayload,
 	WhatsAppErrorResponse,
@@ -18,6 +20,70 @@ import {
 import { broadcast } from '../websocket.ts'
 
 const messagesRouter = new Hono()
+
+/** Process template with variable substitution */
+function processTemplate(
+	templateName: string,
+	language: string,
+	parameters: Array<{
+		type: 'text'
+		parameter_name: string
+		text: string
+	}>
+): { processedTemplate: Template | null; error?: string } {
+	// Get template from store
+	const template = templateStore.getTemplate(templateName, language)
+	if (!template) {
+		return {
+			processedTemplate: null,
+			error: `Template "${templateName}" with language "${language}" not found`,
+		}
+	}
+
+	// Create a map of parameter values by name/index
+	const paramMap = new Map<string, string>()
+	for (const param of parameters) {
+		paramMap.set(param.parameter_name, param.text)
+	}
+
+	// Process each component and substitute variables
+	const processedComponents = template.components.map((component) => {
+		if (component.text) {
+			// Replace {{n}} placeholders with actual values
+			let processedText = component.text
+			const placeholderRegex = /\{\{(\d+)\}\}/g
+
+			processedText = processedText.replace(
+				placeholderRegex,
+				(match, paramName) => {
+					const value = paramMap.get(paramName)
+					if (value !== undefined) {
+						return value
+					}
+					// If parameter not found, keep the placeholder
+					console.warn(
+						`Template parameter ${paramName} not provided, keeping placeholder`
+					)
+					return match
+				}
+			)
+
+			return {
+				...component,
+				text: processedText,
+			}
+		}
+		return component
+	})
+
+	return {
+		processedTemplate: {
+			...template,
+			components: processedComponents,
+		},
+		error: undefined,
+	}
+}
 
 // Helper function to send webhook
 async function sendWebhook(
@@ -182,15 +248,52 @@ messagesRouter.post(
 		// Otherwise handle as regular message
 		const messageBody = body as WhatsAppSendMessageRequest
 
+		// Process template if present
+		let processedContent = {
+			...(messageBody.text && { text: messageBody.text }),
+			...(messageBody.template && { template: messageBody.template }),
+		}
+
+		if (messageBody.template) {
+			const templateProcessingResult = processTemplate(
+				messageBody.template.name,
+				messageBody.template.language.code,
+				messageBody.template.components?.[0]?.parameters || []
+			)
+
+			if (templateProcessingResult.error) {
+				console.error(
+					`❌ Template processing error: ${templateProcessingResult.error}`
+				)
+				return c.json(
+					{
+						error: {
+							message: templateProcessingResult.error,
+							type: 'template_error',
+							code: 400,
+						},
+					} as WhatsAppErrorResponse,
+					400
+				)
+			}
+
+			// Store the processed template in the content
+			processedContent = {
+				template: messageBody.template,
+				processedTemplate: templateProcessingResult.processedTemplate,
+			}
+
+			console.log(
+				`✅ Template "${messageBody.template.name}" processed successfully`
+			)
+		}
+
 		// Store the message
 		const storedMessage = mockStore.storeMessage({
 			phoneNumberId,
 			to: messageBody.to,
 			type: messageBody.type,
-			content: {
-				...(messageBody.text && { text: messageBody.text }),
-				...(messageBody.template && { template: messageBody.template }),
-			},
+			content: processedContent,
 		})
 
 		// Broadcast that a new message was sent

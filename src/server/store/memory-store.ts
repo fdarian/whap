@@ -2,6 +2,7 @@ import type {
 	SimulateMessageParams,
 	WebhookConfiguration,
 } from '../types/api-types.ts'
+import type { Template } from './template-store.ts'
 
 export interface StoredMessage {
 	id: string
@@ -22,6 +23,7 @@ export interface StoredMessage {
 				}>
 			}>
 		}
+		processedTemplate?: Template
 	}
 	timestamp: Date
 	status: 'sent' | 'delivered' | 'read'
