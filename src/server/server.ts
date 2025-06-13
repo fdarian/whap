@@ -45,10 +45,11 @@ app.use('*', async (c, next) => {
 	// Log body for POST/PUT requests
 	if (method === 'POST' || method === 'PUT') {
 		try {
-			const body = await c.req.json()
-			console.log('Body:', JSON.stringify(body, null, 2))
+			const clone = c.req.raw.clone()
+			const bodyText = await clone.text()
+			console.log('Body:', bodyText)
 		} catch {
-			// Body might not be JSON, that's okay
+			// Body might not be readable, that's okay
 		}
 	}
 
@@ -64,35 +65,38 @@ app.get('/health', (c) =>
 	})
 )
 
-// Debug endpoint for templates
-app.get('/debug/templates', (c) =>
-	c.json({
-		stats: templateStore.getStats(),
-		templates: templateStore.getAllTemplates(),
-		templateNames: templateStore.getTemplateNames(),
-	})
-)
-
-// Manual refresh endpoint for testing
-app.post('/debug/reload-templates', async (c) => {
-	try {
-		await templateStore.reloadTemplates()
-		return c.json({
-			success: true,
-			message: 'Templates reloaded successfully',
+// Debug endpoints (only in development)
+if (process.env.NODE_ENV !== 'production') {
+	// Debug endpoint for templates
+	app.get('/debug/templates', (c) =>
+		c.json({
 			stats: templateStore.getStats(),
+			templates: templateStore.getAllTemplates(),
+			templateNames: templateStore.getTemplateNames(),
 		})
-	} catch (error) {
-		return c.json(
-			{
-				success: false,
-				message: 'Failed to reload templates',
-				error: error instanceof Error ? error.message : 'Unknown error',
-			},
-			500
-		)
-	}
-})
+	)
+
+	// Manual refresh endpoint for testing
+	app.post('/debug/reload-templates', async (c) => {
+		try {
+			await templateStore.reloadTemplates()
+			return c.json({
+				success: true,
+				message: 'Templates reloaded successfully',
+				stats: templateStore.getStats(),
+			})
+		} catch (error) {
+			return c.json(
+				{
+					success: false,
+					message: 'Failed to reload templates',
+					error: error instanceof Error ? error.message : 'Unknown error',
+				},
+				500
+			)
+		}
+	})
+}
 app.route('/v22.0', messagesRouter)
 app.route('/v22.0', templatesRouter)
 // The /mock path is for internal simulation tools
