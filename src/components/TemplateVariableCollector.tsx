@@ -25,9 +25,9 @@ const extractTemplateVariables = (template: Template): VariableInfo[] => {
 	const extractFromText = (text: string) => {
 		const matches = text.match(/\{\{(\d+)\}\}/g)
 		if (matches) {
-			matches.forEach((match) =>
+			for (const match of matches) {
 				variablePlaceholders.add(match.replace(/[{}]/g, ''))
-			)
+			}
 		}
 	}
 
@@ -182,18 +182,18 @@ export const TemplateVariableCollector: FC<TemplateVariableCollectorProps> = ({
 
 		// Create preview text by replacing variables
 		let previewText = ''
-		template.components.forEach((component) => {
+		for (const component of template.components) {
 			if (component.text) {
 				let text = component.text
-				Object.entries(parameters).forEach(([key, value]) => {
+				for (const [key, value] of Object.entries(parameters)) {
 					text = text.replace(
 						new RegExp(`\\{\\{${key}\\}\\}`, 'g'),
 						value || `{{${key}}}`
 					)
-				})
-				previewText += `${text}\n`
+				}
+				previewText = `${previewText}${text}\n`
 			}
-		})
+		}
 
 		return (
 			<Box
