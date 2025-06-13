@@ -1,9 +1,10 @@
 import 'dotenv/config'
+import { serve } from '@hono/node-server'
+import { createNodeWebSocket } from '@hono/node-ws'
 import { Hono } from 'hono'
 import { cors } from 'hono/cors'
 import { logger } from 'hono/logger'
-import { createBunWebSocket } from 'hono/bun'
-import type { ServerWebSocket } from 'bun'
+import { getWebhookConfig } from './config.ts'
 import { conversationRouter } from './routes/conversation.ts'
 import { messagesRouter } from './routes/messages.ts'
 import { statusRouter } from './routes/status.ts'
@@ -13,7 +14,12 @@ import { addClient, removeClient } from './websocket.ts'
 const app = new Hono()
 const PORT = Number(process.env.PORT) || 3010
 
-const { upgradeWebSocket, websocket } = createBunWebSocket()
+// Initialize webhook configuration from CLI arguments and environment
+getWebhookConfig()
+
+const { upgradeWebSocket, injectWebSocket } = createNodeWebSocket({
+	app,
+})
 
 // Middleware
 app.use('*', cors())
@@ -52,27 +58,6 @@ app.route('/conversation', conversationRouter)
 // The webhook endpoint for WhatsApp is the root of the webhooksRouter
 app.route('/webhook', webhooksRouter)
 
-// WebSocket route using Hono's upgradeWebSocket
-app.get(
-	'/ws',
-	upgradeWebSocket((c) => {
-		return {
-			onOpen: (_event, ws) => {
-				console.log('WebSocket connection opened')
-				addClient(ws.raw as ServerWebSocket<unknown>)
-			},
-			onMessage: (event, ws) => {
-				console.log('WebSocket message received:', event.data)
-				// Handle incoming websocket messages if needed
-			},
-			onClose: (_event, ws) => {
-				console.log('WebSocket connection closed')
-				removeClient(ws.raw as ServerWebSocket<unknown>)
-			},
-		}
-	})
-)
-
 // 404 handler
 app.notFound((c) => {
 	return c.json(
@@ -102,11 +87,35 @@ app.onError((err, c) => {
 	)
 })
 
-const server = Bun.serve({
-	port: PORT,
+app.get(
+	'/ws',
+	upgradeWebSocket((c) => {
+		return {
+			onOpen: (_evt, ws) => {
+				console.log('WebSocket connection opened')
+				// biome-ignore lint/suspicious/noExplicitAny: agent wrote this
+				addClient(ws as any)
+			},
+			onClose: (_evt, ws) => {
+				console.log('WebSocket connection closed')
+				// biome-ignore lint/suspicious/noExplicitAny: agent wrote this
+				removeClient(ws as any)
+			},
+			onError: (err, ws) => {
+				console.error('WebSocket error:', err)
+				// biome-ignore lint/suspicious/noExplicitAny: agent wrote this
+				removeClient(ws as any)
+			},
+		}
+	})
+)
+
+const server = serve({
 	fetch: app.fetch,
-	websocket,
+	port: PORT,
 })
+
+injectWebSocket(server)
 
 console.log(`🚀 Server is running on port ${PORT}`)
 console.log(`Websocket server is running on ws://localhost:${PORT}/ws`)

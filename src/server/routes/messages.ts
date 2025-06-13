@@ -1,5 +1,6 @@
 import { Hono } from 'hono'
 import { validator } from 'hono/validator'
+import { getWebhookUrl } from '../config.ts'
 import { mockStore } from '../store/memory-store.ts'
 import type {
 	WebhookPayload,
@@ -12,11 +13,6 @@ import type {
 import { broadcast } from '../websocket.ts'
 
 const messagesRouter = new Hono()
-
-// Get webhook URL from environment variable
-const getWebhookUrl = (): string | null => {
-	return process.env.WEBHOOK_URL || null
-}
 
 // Helper function to send webhook
 async function sendWebhook(
@@ -51,7 +47,7 @@ function sendDeliveryStatusWebhook(
 	to: string,
 	status: 'sent' | 'delivered' | 'read'
 ): void {
-	const webhookUrl = getWebhookUrl()
+	const webhookUrl = getWebhookUrl(phoneNumberId)
 	if (!webhookUrl) return
 
 	const payload: WebhookPayload = {

@@ -1,5 +1,6 @@
 import { Hono } from 'hono'
 import { validator } from 'hono/validator'
+import { getAllWebhookMappings, getWebhookUrl } from '../config.ts'
 import { mockStore } from '../store/memory-store.ts'
 import type {
 	SimulateMessageParams,
@@ -9,11 +10,6 @@ import type {
 } from '../types/api-types.ts'
 
 const webhooksRouter = new Hono()
-
-// Get webhook URL from environment variable
-const getWebhookUrl = (): string | null => {
-	return process.env.WEBHOOK_URL || null
-}
 
 // Configure webhook URL for a phone number
 webhooksRouter.post(
@@ -103,13 +99,19 @@ webhooksRouter.get('/configure/:phoneNumberId', (c) => {
 	return c.json(config)
 })
 
-// Get current webhook URL from environment
+// Get current webhook configuration
 webhooksRouter.get('/config', (c) => {
-	const webhookUrl = getWebhookUrl()
+	const fallbackUrl = getWebhookUrl()
+	const mappings = getAllWebhookMappings()
+
 	return c.json({
-		webhookUrl,
-		configured: !!webhookUrl,
-		source: 'environment_variable',
+		fallbackUrl,
+		mappings,
+		configured: !!fallbackUrl || mappings.length > 0,
+		sources: {
+			environment: !!fallbackUrl,
+			cli_mappings: mappings.length > 0,
+		},
 	})
 })
 
@@ -169,15 +171,15 @@ webhooksRouter.post(
 	async (c) => {
 		const params = c.req.valid('json') as SimulateMessageParams
 
-		// Get webhook URL from environment variable
-		const webhookUrl = getWebhookUrl()
+		// Get webhook URL for the specific phone number
+		const webhookUrl = getWebhookUrl(params.to)
 
 		if (!webhookUrl) {
 			return c.json(
 				{
 					error: {
 						message:
-							'No webhook URL configured. Set WEBHOOK_URL environment variable.',
+							'No webhook URL configured for this phone number. Set WEBHOOK_URL environment variable or use --webhook-url CLI argument.',
 						type: 'webhook_not_configured',
 						code: 400,
 					},

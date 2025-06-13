@@ -1,12 +1,12 @@
-import type { ServerWebSocket } from 'bun'
+import type { WebSocket } from 'ws'
 
-const clients = new Set<ServerWebSocket<unknown>>()
+const clients = new Set<WebSocket>()
 
-export const addClient = (ws: ServerWebSocket<unknown>) => {
+export const addClient = (ws: WebSocket) => {
 	clients.add(ws)
 }
 
-export const removeClient = (ws: ServerWebSocket<unknown>) => {
+export const removeClient = (ws: WebSocket) => {
 	clients.delete(ws)
 }
 
@@ -18,7 +18,8 @@ interface BroadcastMessage {
 export const broadcast = (message: BroadcastMessage) => {
 	const serializedMessage = JSON.stringify(message)
 	for (const client of clients) {
-		if (client.readyState === WebSocket.OPEN) {
+		if (client.readyState === 1) {
+			// OPEN
 			try {
 				client.send(serializedMessage)
 			} catch (error) {
