@@ -148,6 +148,200 @@ Create JSON files in the `templates/` directory at your project root. Templates 
 }
 ```
 
+## Named Parameters Support
+
+The WhatsApp Template Testing System supports both **numbered parameters** ({{1}}, {{2}}) and **named parameters** ({{name}}, {{email}}) for enhanced readability and maintainability.
+
+### Named Parameter Template Example
+
+```json
+// templates/new_booking.json
+{
+  "name": "new_booking",
+  "language": "en",
+  "category": "UTILITY",
+  "components": [
+    {
+      "type": "BODY",
+      "text": "Hi {{artist_name}}, you have a new booking request for {{event_name}} on {{event_date}} at {{event_location}} from {{booker_name}}. Let me know if you'd like to know more about the event."
+    }
+  ],
+  "variables": {
+    "artist_name": {
+      "description": "Artist name",
+      "example": "John Smith"
+    },
+    "event_name": {
+      "description": "Event name", 
+      "example": "Wedding Reception"
+    },
+    "event_date": {
+      "description": "Event date",
+      "example": "December 15, 2024"
+    },
+    "event_location": {
+      "description": "Event location",
+      "example": "Grand Ballroom Hotel"
+    },
+    "booker_name": {
+      "description": "Booker name",
+      "example": "Sarah Johnson"
+    }
+  }
+}
+```
+
+### Mixed Parameter Template Example
+
+```json
+// templates/mixed_parameters.json
+{
+  "name": "order_status_mixed",
+  "language": "en_US",
+  "category": "UTILITY",
+  "components": [
+    {
+      "type": "BODY",
+      "text": "Dear {{customer_name}}, your order {{1}} is ready. Contact us at {{support_email}} or call {{2}}.",
+      "example": {
+        "body_text": [["#12345"], ["555-0123"]]
+      }
+    }
+  ],
+  "variables": {
+    "customer_name": {
+      "description": "Customer's full name",
+      "example": "John Doe"
+    },
+    "support_email": {
+      "description": "Support email address",
+      "example": "support@company.com"
+    }
+  }
+}
+```
+
+### API Request Format for Named Parameters
+
+When sending template messages with named parameters via API:
+
+```bash
+curl -X POST http://localhost:3010/v22.0/123456789/messages \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer YOUR_ACCESS_TOKEN" \
+  -d '{
+    "messaging_product": "whatsapp",
+    "to": "1234567890",
+    "type": "template", 
+    "template": {
+      "name": "new_booking",
+      "language": { "code": "en" },
+      "components": [
+        {
+          "type": "body",
+          "parameters": [
+            { 
+              "type": "text", 
+              "parameter_name": "artist_name",
+              "text": "John Smith" 
+            },
+            { 
+              "type": "text", 
+              "parameter_name": "event_name",
+              "text": "Wedding Reception" 
+            },
+            { 
+              "type": "text", 
+              "parameter_name": "event_date", 
+              "text": "December 15, 2024" 
+            },
+            { 
+              "type": "text", 
+              "parameter_name": "event_location",
+              "text": "Grand Ballroom Hotel" 
+            },
+            { 
+              "type": "text", 
+              "parameter_name": "booker_name",
+              "text": "Sarah Johnson" 
+            }
+          ]
+        }
+      ]
+    }
+  }'
+```
+
+### Mixed Parameters API Request
+
+For templates with both named and numbered parameters:
+
+```bash
+curl -X POST http://localhost:3010/v22.0/123456789/messages \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer YOUR_ACCESS_TOKEN" \
+  -d '{
+    "messaging_product": "whatsapp",
+    "to": "1234567890",
+    "type": "template",
+    "template": {
+      "name": "order_status_mixed",
+      "language": { "code": "en_US" },
+      "components": [
+        {
+          "type": "body",
+          "parameters": [
+            { 
+              "type": "text", 
+              "parameter_name": "customer_name",
+              "text": "John Doe" 
+            },
+            { 
+              "type": "text", 
+              "parameter_name": "1",
+              "text": "#12345" 
+            },
+            { 
+              "type": "text", 
+              "parameter_name": "support_email",
+              "text": "support@company.com" 
+            },
+            { 
+              "type": "text", 
+              "parameter_name": "2",
+              "text": "555-0123" 
+            }
+          ]
+        }
+      ]
+    }
+  }'
+```
+
+### Parameter Naming Guidelines
+
+#### Valid Parameter Names
+- **Alphanumeric**: `{{user_name}}`, `{{order123}}`
+- **Underscores**: `{{first_name}}`, `{{customer_id}}`
+- **Hyphens**: `{{company-name}}`, `{{user-email}}`
+- **Dots**: `{{user.id}}`, `{{order.status}}`
+- **Case sensitive**: `{{Name}}` and `{{name}}` are different
+
+#### Best Practices
+- **Use descriptive names**: `{{customer_name}}` instead of `{{name}}`
+- **Be consistent**: Use the same naming convention across templates
+- **Include variable descriptions**: Help other developers understand purpose
+- **Provide meaningful examples**: Show realistic sample values
+
+### Backward Compatibility
+
+Named parameters are fully backward compatible with numbered parameters:
+
+- **Existing numbered templates** continue to work unchanged
+- **Mixed usage** is supported within the same template
+- **API format** remains consistent - use `parameter_name` field for both types
+- **CLI interface** automatically detects parameter type and prompts accordingly
+
 ## Template Components Reference
 
 ### Supported Components
@@ -171,6 +365,8 @@ Create JSON files in the `templates/` directory at your project root. Templates 
 - **VIDEO**: 16MB maximum file size
 
 #### Body Component
+
+##### With Numbered Parameters
 ```json
 {
   "type": "BODY",
@@ -181,10 +377,20 @@ Create JSON files in the `templates/` directory at your project root. Templates 
 }
 ```
 
+##### With Named Parameters
+```json
+{
+  "type": "BODY",
+  "text": "Hello {{customer_name}}, your order {{order_id}} has been confirmed."
+}
+```
+
 **Limits:**
 - **Text**: 1,024 characters maximum
-- **Variables**: Up to 10 variables ({{1}} to {{10}})
-- **Example**: Must provide example values for all variables
+- **Variables**: Up to 10 variables per component
+- **Numbered**: Use {{1}} to {{10}} format
+- **Named**: Use descriptive names like {{customer_name}}, {{order_id}}
+- **Example**: Provide example values for numbered parameters only
 
 #### Footer Component
 ```json
@@ -272,6 +478,7 @@ For customer support:
 
 When you choose to send a template message in the CLI:
 
+#### Numbered Parameters Template
 ```
 📋 Available Templates:
 1. welcome_message (UTILITY)
@@ -288,6 +495,48 @@ Enter value for {{1}} (Customer name): John Smith
 Enter value for {{2}} (Order ID): #ORD-12345
 Enter value for {{3}} (Delivery address): 123 Main St, Anytown
 Enter value for {{4}} (Delivery time): 2-4 PM today
+
+✅ Template message sent!
+```
+
+#### Named Parameters Template
+```
+📋 Available Templates:
+1. welcome_message (UTILITY)
+2. new_booking (UTILITY)
+3. order_update (UTILITY)
+4. promotional_offer (MARKETING)
+
+Select template (1-4): 2
+
+📝 Template: new_booking
+Variables needed: {{artist_name}}, {{event_name}}, {{event_date}}, {{event_location}}, {{booker_name}}
+
+Enter value for {{artist_name}} (Artist name): John Smith
+Enter value for {{event_name}} (Event name): Wedding Reception  
+Enter value for {{event_date}} (Event date): December 15, 2024
+Enter value for {{event_location}} (Event location): Grand Ballroom Hotel
+Enter value for {{booker_name}} (Booker name): Sarah Johnson
+
+✅ Template message sent!
+```
+
+#### Mixed Parameters Template
+```
+📋 Available Templates:
+1. welcome_message (UTILITY)
+2. order_status_mixed (UTILITY)
+3. order_update (UTILITY)
+
+Select template (1-3): 2
+
+📝 Template: order_status_mixed
+Variables needed: {{customer_name}}, {{1}}, {{support_email}}, {{2}}
+
+Enter value for {{customer_name}} (Customer's full name): John Doe
+Enter value for {{1}}: #12345
+Enter value for {{support_email}} (Support email address): support@company.com
+Enter value for {{2}}: 555-0123
 
 ✅ Template message sent!
 ```
@@ -456,8 +705,12 @@ Templates are validated against WhatsApp Business API schema:
 
 - **Structure validation**: Required fields and component structure
 - **Content validation**: Character limits and format requirements  
-- **Variable validation**: Proper variable sequencing ({{1}}, {{2}}, etc.)
-- **Example validation**: Example values provided for all variables
+- **Variable validation**: 
+  - **Numbered**: Proper variable sequencing ({{1}}, {{2}}, etc.)
+  - **Named**: Valid parameter names and proper format
+  - **Mixed**: Both types can coexist in the same template
+- **Example validation**: Example values provided for numbered variables
+- **Variables section**: Optional metadata for named parameters with descriptions and examples
 
 ### Error Handling
 

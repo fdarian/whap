@@ -23,7 +23,7 @@ import { broadcast } from '../websocket.ts'
 const messagesRouter = new Hono()
 
 /** Process template with variable substitution */
-function processTemplate(
+export function processTemplate(
 	templateName: string,
 	language: string,
 	parameters: Array<{
@@ -50,9 +50,9 @@ function processTemplate(
 	// Process each component and substitute variables
 	const processedComponents = template.components.map((component) => {
 		if (component.text) {
-			// Replace {{n}} placeholders with actual values
+			// Replace both {{n}} and {{name}} placeholders with actual values
 			let processedText = component.text
-			const placeholderRegex = /\{\{(\d+)\}\}/g
+			const placeholderRegex = /\{\{([^}]+)\}\}/g
 
 			processedText = processedText.replace(
 				placeholderRegex,

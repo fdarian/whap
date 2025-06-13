@@ -21,9 +21,9 @@ interface VariableInfo {
 const extractTemplateVariables = (template: Template): VariableInfo[] => {
 	const variablePlaceholders = new Set<string>()
 
-	// Extract {{n}} placeholders from all text fields
+	// Extract both {{n}} and {{name}} placeholders from all text fields
 	const extractFromText = (text: string) => {
-		const matches = text.match(/\{\{(\d+)\}\}/g)
+		const matches = text.match(/\{\{([^}]+)\}\}/g)
 		if (matches) {
 			for (const match of matches) {
 				variablePlaceholders.add(match.replace(/[{}]/g, ''))
@@ -45,8 +45,19 @@ const extractTemplateVariables = (template: Template): VariableInfo[] => {
 	}
 
 	// Convert to VariableInfo array, prioritizing template.variables metadata
+	// Sort numbered parameters first, then named parameters alphabetically
 	return Array.from(variablePlaceholders)
-		.sort((a, b) => Number.parseInt(a, 10) - Number.parseInt(b, 10))
+		.sort((a, b) => {
+			const aIsNumber = /^\d+$/.test(a)
+			const bIsNumber = /^\d+$/.test(b)
+
+			if (aIsNumber && bIsNumber) {
+				return Number.parseInt(a, 10) - Number.parseInt(b, 10)
+			}
+			if (aIsNumber && !bIsNumber) return -1
+			if (!aIsNumber && bIsNumber) return 1
+			return a.localeCompare(b)
+		})
 		.map((key) => {
 			const metadata = template.variables?.[key]
 			return {
