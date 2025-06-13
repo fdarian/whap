@@ -1,0 +1,101 @@
+---
+description:
+globs:
+alwaysApply: false
+---
+# WhatsApp Mock Server - Coding Conventions
+
+## TypeScript Conventions (CRITICAL)
+
+### Import/Export Rules
+- **Do not create barrel files** - Keep imports direct and explicit
+- **Do not organize types into one `types.ts`** - Define types beside functions in same module, or use inference when possible
+- **Use explicit `.ts` (or `.tsx`) extensions** in imports (required for ES modules)
+
+```typescript
+// ✅ Correct - explicit .ts extension
+import { ApiClient } from '../utils/api-client.ts'
+
+// ✅ Correct - direct imports, no barrel files
+import { MessageComposer } from './MessageComposer.tsx'
+
+// ✅ Correct - inline type definitions
+export interface MessageData {
+  id: string
+  content: string
+  timestamp: Date
+}
+```
+
+### Function Documentation
+- Use simple `/** Brief description */` comments directly above functions, variables, and properties
+- Avoid detailed `@param`, `@returns`, or other JSDoc tags
+- Keep documentation concise and self-evident from the code
+
+```typescript
+// ✅ Good - simple description
+/** Sends a message to the WhatsApp API */
+export const sendMessage = (content: string) => {
+  // implementation
+}
+
+// ❌ Avoid - overly detailed JSDoc
+/**
+ * Sends a message to the WhatsApp API
+ * @param content The message content to send
+ * @returns Promise<MessageResponse> The API response
+ */
+export const sendMessage = (content: string): Promise<MessageResponse> => {
+  // implementation
+}
+```
+
+## General Development Rules
+
+### Code Organization
+- **When modifying functions that become too large** - Refactor modifications into separate functions to enhance readability
+- **Comment only when necessary** - Comment when the change's intent or rationale is not self-evident from the diff
+- Skip any note that merely rephrases the obvious (e.g., "renamed variable," "added validation")
+
+### Type Definitions
+- Define types beside functions in the same module when possible
+- Use TypeScript inference when the type is obvious from context
+- Only create separate type files when types are shared across multiple modules
+
+```typescript
+// ✅ Good - inline type with function
+export interface SendMessageOptions {
+  phoneNumber: string
+  content: string
+  type?: 'text' | 'template'
+}
+
+export const sendMessage = (options: SendMessageOptions) => {
+  // implementation
+}
+
+// ✅ Good - inferred types
+export const createMessage = (content: string) => {
+  return {
+    id: uuid(),
+    content,
+    timestamp: new Date(),
+    status: 'pending' as const
+  }
+}
+```
+
+## Common Gotchas
+
+### ❌ Don't Do This
+- **Never use npm/yarn** - Always use `pnpm`
+- **Don't create barrel files** - Keep imports explicit
+- **Don't centralize types** - Define them inline or beside functions
+- **Don't assume port 3001** - Default mock server runs on port 3010
+
+### ✅ Always Do This
+- **Check package.json scripts** before running commands
+- **Use explicit .ts extensions** in imports (ES modules requirement)
+- **Maintain WhatsApp API compatibility** when adding/modifying endpoints
+- **Update CLI status/feedback** when adding new features
+- **Test both mock and API switching** when making server changes

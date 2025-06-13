@@ -1,0 +1,74 @@
+---
+description:
+globs:
+alwaysApply: false
+---
+# WhatsApp Mock Server - Architecture & Components
+
+## Architecture Overview
+
+The project consists of **two main components** that work together:
+
+### 1. Mock Server (`src/server/`)
+- **Hono-based server** that mimics WhatsApp Cloud API endpoints
+- **In-memory storage** for messages and conversation state
+- **Webhook simulation** capabilities
+- **Full API compatibility** with WhatsApp Cloud API v22.0
+- **Entry point**: [src/server/server.ts](mdc:src/server/server.ts)
+
+### 2. Interactive CLI (`src/components/`)
+- **React-based CLI** built with Ink framework
+- **Real-time monitoring** of webhooks and messages
+- **Interactive message composition** and testing
+- **Simplified interface** with onboarding flow
+- **Entry point**: [src/index.tsx](mdc:src/index.tsx)
+
+## Key Files & Structure
+
+### Critical Entry Points
+- [src/index.tsx](mdc:src/index.tsx) - CLI application entry
+- [src/server/server.ts](mdc:src/server/server.ts) - Mock server entry
+- [package.json](mdc:package.json) - Contains run scripts and dependencies
+
+### Core CLI Components
+- [src/components/WhatsAppTestCLI.tsx](mdc:src/components/WhatsAppTestCLI.tsx) - Main app with simplified layout
+- [src/components/OnboardingFlow.tsx](mdc:src/components/OnboardingFlow.tsx) - Initial phone number setup
+- [src/components/SimplifiedChatInterface.tsx](mdc:src/components/SimplifiedChatInterface.tsx) - Main conversation interface
+- [src/components/TextInput.tsx](mdc:src/components/TextInput.tsx) - Reusable text input component
+
+### Server Architecture
+- `src/server/routes/` - API endpoint handlers
+- `src/server/store/` - In-memory data storage
+- `src/server/types/` - API type definitions
+
+## API Compatibility
+
+### WhatsApp Cloud API Compatible Endpoints
+- `POST /v22.0/{phone-number-id}/messages` - Send messages (text, templates)
+- `GET /health` - Server health check
+
+### Mock Server Specific Endpoints
+- `POST /mock/webhooks/trigger` - Trigger webhook events
+- `GET /mock/webhooks/config` - Get webhook configuration
+- `PUT /mock/webhooks/config` - Update webhook configuration
+- `GET /conversation` - Get conversation history
+
+### WhatsApp Message Structure
+```typescript
+// Standard WhatsApp webhook payload structure
+{
+  object: 'whatsapp_business_account',
+  entry: [{
+    changes: [{
+      messaging_product: 'whatsapp',
+      messages: [{
+        from: '6286777363432',
+        id: 'message_id',
+        timestamp: '1234567890',
+        type: 'text',
+        text: { body: 'Message content' }
+      }]
+    }]
+  }]
+}
+```

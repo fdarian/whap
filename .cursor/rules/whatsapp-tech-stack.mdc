@@ -1,0 +1,75 @@
+---
+description:
+globs:
+alwaysApply: false
+---
+# WhatsApp Mock Server - Technology Stack
+
+## Runtime & Language
+- **Node.js** with ES modules (`"type": "module"`)
+- **TypeScript** with strict configuration
+- **TSX** for running TypeScript files directly
+
+## Frameworks
+
+### Server Framework
+- **Hono** - Lightweight web framework for the mock server
+
+### CLI Framework
+- **React** - Component-based UI library
+- **Ink** - React renderer for CLI applications
+
+## Key Dependencies
+
+### HTTP & Utilities
+- **ky** - HTTP client for API communication
+- **chalk** - Terminal string styling
+- **dotenv** - Environment variable loading
+- **date-fns** - Date manipulation utilities
+- **uuid** - UUID generation
+
+## React/Ink Patterns
+
+### Functional Components with Hooks
+```typescript
+// ✅ Functional components with hooks
+export const Component = () => {
+  const [state, setState] = useState()
+
+  useInput((input, key) => {
+    // Handle keyboard input
+  })
+
+  useEffect(() => {
+    // Handle side effects
+  })
+
+  return <Box>...</Box>
+}
+```
+
+## Server Patterns
+
+### Hono Route Handlers
+```typescript
+// ✅ Hono route handlers
+app.post('/v22.0/:phoneId/messages', async (c) => {
+  return c.json({
+    messaging_product: 'whatsapp',
+    messages: [{ id: uuid() }]
+  })
+})
+
+// ✅ WhatsApp-compatible error responses
+return c.json({
+  error: {
+    message: 'Descriptive error message',
+    type: 'error_type',
+    code: 400
+  }
+}, 400)
+```
+
+## Package Management
+- **Use `pnpm` for all operations** - Never use `npm` or `yarn`
+- Check [package.json](mdc:package.json) scripts before running commands

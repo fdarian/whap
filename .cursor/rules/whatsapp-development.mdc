@@ -1,0 +1,75 @@
+---
+description:
+globs:
+alwaysApply: false
+---
+# WhatsApp Mock Server - Development Guidelines
+
+## Development Workflow
+
+### Two-Process Setup (CRITICAL)
+Always run both server and CLI in separate terminals:
+```bash
+# Terminal 1: Start mock server
+pnpm run start:server
+
+# Terminal 2: Start CLI interface
+pnpm run start:cli
+```
+
+### Test Cycle
+1. **Compose** - Write message in CLI
+2. **Send** - Submit via Enter key
+3. **Monitor** - Watch webhooks and responses
+4. **Verify** - Check conversation history
+
+## CLI Development Guidelines
+
+### ❌ Don't Do This
+- **Never run `pnpm run start:cli`** or similar interactive commands when working on interface improvements
+- Interactive CLI commands don't provide useful feedback in this development context
+
+### ✅ Do This Instead
+- Focus on making code changes and explaining expected behavior
+- Analyze the code structure and layout logic
+- Use static analysis to predict how changes will affect the interface
+
+### CLI Navigation
+- **Enter**: Send message / advance onboarding steps
+- **Ctrl+N**: Start new conversation (reset phone numbers)
+- **Ctrl+R**: Refresh conversation manually
+- **Ctrl+C**: Exit application
+- **Esc**: Go back one step (during onboarding)
+
+### Interface Design Best Practices
+- **Fixed message limits** instead of dynamic calculations based on terminal size
+- **Single-line compact format** that won't wrap: `14:05:20 → ...313111 hi there`
+- **Smart truncation**: Show last 6 digits of phone numbers, limit message text to 20 chars
+- **No complex nested layouts** - use simple Box + Text combinations
+
+## Debugging & Troubleshooting
+
+### Common Issues
+- **Port conflicts**: Default server port is 3010, not 3001
+- **Memory store**: Data clears on server restart (in-memory only)
+- **Interactive commands**: Don't run CLI commands when developing interface
+
+### Debugging Context
+- **Server logs**: Check terminal running `start:server` for API call logs
+- **CLI state**: All state is visual in the CLI interface
+- **Visual feedback**: Users should see what's happening
+
+## When Adding Features
+
+### Consider Both Components
+1. **CLI and API impact** - Most features touch both
+2. **Update relevant rule files** in `.cursor/rules/` to maintain context
+3. **Test the full workflow** - Compose → Send → Monitor → Respond
+4. **Maintain visual feedback** - Users should see what's happening
+5. **Keep API compatibility** - New features shouldn't break WhatsApp Cloud API structure
+
+### Development Philosophy
+- **Developer Experience Focus**: Everything should be fast, visual, and easy to test
+- **Visual Feedback Loop**: Everything should be visible in the CLI - no blind API calls
+- **Mock-First Philosophy**: Default to mock server (localhost:3010)
+- **API Compatibility**: Preserve WhatsApp Cloud API v22.0 compatibility
