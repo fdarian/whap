@@ -4,6 +4,7 @@ import { type FC, useCallback, useEffect, useState } from 'react'
 import type { ApiClient, Message, Template } from '../utils/api-client.ts'
 import { useTerminal } from '../utils/terminal.ts'
 import { webSocketClient } from '../utils/websocket-client.ts'
+import { TemplateVariableCollector } from './TemplateVariableCollector.tsx'
 import { TextInput } from './TextInput.tsx'
 
 interface SimplifiedChatInterfaceProps {
@@ -41,8 +42,6 @@ export const SimplifiedChatInterface: FC<SimplifiedChatInterfaceProps> = ({
 	const [templateParams, setTemplateParams] = useState<Record<string, string>>(
 		{}
 	)
-	const [currentParamKey, setCurrentParamKey] = useState<string>('')
-	const [currentParamValue, setCurrentParamValue] = useState('')
 	const [templatesLoading, setTemplatesLoading] = useState(false)
 
 	const terminal = useTerminal()
@@ -140,17 +139,8 @@ export const SimplifiedChatInterface: FC<SimplifiedChatInterfaceProps> = ({
 				setMode('chat')
 			}
 		} else if (mode === 'template-params') {
-			if (key.return && currentParamValue.trim()) {
-				handleSetTemplateParam()
-			}
-
-			if (key.escape) {
-				setMode('templates')
-			}
-
-			if (key.ctrl && input === 's') {
-				void handleSendTemplateMessage()
-			}
+			// Template parameter input is now handled by TemplateVariableCollector
+			// No additional input handling needed here
 		}
 	})
 
@@ -174,78 +164,10 @@ export const SimplifiedChatInterface: FC<SimplifiedChatInterfaceProps> = ({
 
 		if (template.variables && Object.keys(template.variables).length > 0) {
 			// Template has parameters, switch to parameter input mode
-			const firstParamKey = Object.keys(template.variables)[0]
-			setCurrentParamKey(firstParamKey)
-			setCurrentParamValue('')
 			setMode('template-params')
 		} else {
-			// No parameters needed, send immediately
-			void handleSendTemplateMessage()
-		}
-	}
-
-	const handleSetTemplateParam = () => {
-		if (!currentParamKey || !currentParamValue.trim() || !selectedTemplate)
-			return
-
-		const newParams = {
-			...templateParams,
-			[currentParamKey]: currentParamValue,
-		}
-		setTemplateParams(newParams)
-		setCurrentParamValue('')
-
-		// Move to next parameter if available
-		const paramKeys = Object.keys(selectedTemplate.variables || {})
-		const currentIndex = paramKeys.indexOf(currentParamKey)
-
-		if (currentIndex < paramKeys.length - 1) {
-			// More parameters to fill
-			setCurrentParamKey(paramKeys[currentIndex + 1])
-		} else {
-			// All parameters filled, ready to send
-			setCurrentParamKey('')
-		}
-	}
-
-	const handleSendTemplateMessage = async () => {
-		if (!selectedTemplate) return
-
-		setStatus('sending')
-		setErrorMessage('')
-
-		try {
-			// Convert templateParams to parameter array
-			const paramValues = Object.keys(selectedTemplate.variables || {})
-				.sort()
-				.map((key) => templateParams[key] || '')
-
-			await apiClient.sendTemplateMessage(
-				userPhoneNumber,
-				botPhoneNumber,
-				selectedTemplate.name,
-				paramValues
-			)
-
-			setStatus('sent')
-			setMode('chat')
-			setSelectedTemplate(null)
-			setTemplateParams({})
-
-			// Reload conversation to show the new message
-			await loadConversation()
-
-			// Clear status after 2 seconds
-			setTimeout(() => {
-				setStatus('idle')
-			}, 2000)
-		} catch (error) {
-			setStatus('error')
-			setErrorMessage(
-				error instanceof Error
-					? error.message
-					: 'Failed to send template message'
-			)
+			// No parameters needed, send immediately using new handler
+			void handleTemplateVariablesComplete({})
 		}
 	}
 
@@ -375,82 +297,50 @@ export const SimplifiedChatInterface: FC<SimplifiedChatInterfaceProps> = ({
 		)
 	}
 
-	const renderTemplateParameterInput = () => {
-		if (!selectedTemplate || !currentParamKey) {
-			// All parameters filled, show preview
-			return (
-				<Box flexDirection="column">
-					<Box marginBottom={1}>
-						<Text color="green">✅ Template ready to send!</Text>
-					</Box>
+	const handleTemplateVariablesComplete = async (
+		parameters: Record<string, string>
+	) => {
+		if (!selectedTemplate) return
 
-					<Box marginBottom={1}>
-						<Text color="cyan">Template: {selectedTemplate?.name}</Text>
-					</Box>
+		setStatus('sending')
+		setErrorMessage('')
 
-					<Box marginBottom={1} flexDirection="column">
-						<Text color="yellow">Parameters:</Text>
-						{Object.entries(templateParams).map(([key, value]) => (
-							<Text key={key} color="white">
-								{' '}
-								{key}: "{value}"
-							</Text>
-						))}
-					</Box>
+		try {
+			const parameterArray = Object.entries(parameters)
+				.sort(([a], [b]) => Number.parseInt(a, 10) - Number.parseInt(b, 10))
+				.map(([, value]) => value)
 
-					<Box marginTop={1}>
-						<Text color="gray" dimColor>
-							Ctrl+S: Send template | Esc: Back to templates
-						</Text>
-					</Box>
-				</Box>
+			await apiClient.sendTemplateMessage(
+				userPhoneNumber,
+				botPhoneNumber,
+				selectedTemplate.name,
+				parameterArray
+			)
+
+			setStatus('sent')
+			setMode('chat')
+			setSelectedTemplate(null)
+			setTemplateParams({})
+
+			// Reload conversation to show the new message
+			await loadConversation()
+
+			// Clear status after 2 seconds
+			setTimeout(() => {
+				setStatus('idle')
+			}, 2000)
+		} catch (error) {
+			setStatus('error')
+			setErrorMessage(
+				error instanceof Error ? error.message : 'Failed to send template'
 			)
 		}
+	}
 
-		const paramInfo = selectedTemplate.variables?.[currentParamKey]
-		const remainingParams =
-			Object.keys(selectedTemplate.variables || {}).length -
-			Object.keys(templateParams).length
-
-		return (
-			<Box flexDirection="column">
-				<Box marginBottom={1}>
-					<Text color="cyan">📝 Template: {selectedTemplate.name}</Text>
-				</Box>
-
-				<Box marginBottom={1}>
-					<Text color="yellow">
-						Parameter {currentParamKey} ({remainingParams} remaining):
-					</Text>
-				</Box>
-
-				{paramInfo && (
-					<Box marginBottom={1} flexDirection="column">
-						<Text color="gray" dimColor>
-							Description: {paramInfo.description}
-						</Text>
-						<Text color="gray" dimColor>
-							Example: {paramInfo.example}
-						</Text>
-					</Box>
-				)}
-
-				<Box marginBottom={1}>
-					<TextInput
-						value={currentParamValue}
-						onChange={setCurrentParamValue}
-						placeholder={`Enter value for ${currentParamKey}...`}
-						focus={true}
-					/>
-				</Box>
-
-				<Box marginTop={1}>
-					<Text color="gray" dimColor>
-						Enter: Set parameter | Esc: Back to templates
-					</Text>
-				</Box>
-			</Box>
-		)
+	const handleTemplateVariablesCancel = () => {
+		setMode('templates')
+		setSelectedTemplate(null)
+		setTemplateParams({})
 	}
 
 	return (
@@ -458,7 +348,13 @@ export const SimplifiedChatInterface: FC<SimplifiedChatInterfaceProps> = ({
 			{/* Main area */}
 			<Box flexDirection="column" flexGrow={1} paddingX={2} paddingY={1}>
 				{mode === 'templates' && renderTemplateSelector()}
-				{mode === 'template-params' && renderTemplateParameterInput()}
+				{mode === 'template-params' && selectedTemplate && (
+					<TemplateVariableCollector
+						template={selectedTemplate}
+						onComplete={handleTemplateVariablesComplete}
+						onCancel={handleTemplateVariablesCancel}
+					/>
+				)}
 
 				{mode === 'chat' && (
 					<>
