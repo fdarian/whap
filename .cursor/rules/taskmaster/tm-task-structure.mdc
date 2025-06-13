@@ -1,0 +1,113 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
+## Overview
+
+- Use `move_task` / CLI `task-master move --from=<id> --to=<id>` to move tasks or subtasks within the hierarchy
+- This command supports several use cases:
+  - Moving a standalone task to become a subtask (e.g., `--from=5 --to=7`)
+  - Moving a subtask to become a standalone task (e.g., `--from=5.2 --to=7`) 
+  - Moving a subtask to a different parent (e.g., `--from=5.2 --to=7.3`)
+  - Reordering subtasks within the same parent (e.g., `--from=5.2 --to=5.4`)
+  - Moving a task to a new, non-existent ID position (e.g., `--from=5 --to=25`)
+  - Moving multiple tasks at once using comma-separated IDs (e.g., `--from=10,11,12 --to=16,17,18`)
+- The system includes validation to prevent data loss:
+  - Allows moving to non-existent IDs by creating placeholder tasks
+  - Prevents moving to existing task IDs that have content (to avoid overwriting)
+  - Validates source tasks exist before attempting to move them
+- The system maintains proper parent-child relationships and dependency integrity
+- Task files are automatically regenerated after the move operation
+- This provides greater flexibility in organizing and refining your task structure as project understanding evolves
+- This is especially useful when dealing with potential merge conflicts arising from teams creating tasks on separate branches. Solve these conflicts very easily by moving your tasks and keeping theirs.
+
+## Task Breakdown Process
+
+-   Use `expand_task` / `task-master expand --id=<id>`. It automatically uses the complexity report if found, otherwise generates default number of subtasks.
+-   Use `--num=<number>` to specify an explicit number of subtasks, overriding defaults or complexity report recommendations.
+-   Add `--research` flag to leverage Perplexity AI for research-backed expansion.
+-   Add `--force` flag to clear existing subtasks before generating new ones (default is to append).
+-   Use `--prompt="<context>"` to provide additional context when needed.
+-   Review and adjust generated subtasks as necessary.
+-   Use `expand_all` tool or `task-master expand --all` to expand multiple pending tasks at once, respecting flags like `--force` and `--research`.
+-   If subtasks need complete replacement (regardless of the `--force` flag on `expand`), clear them first with `clear_subtasks` / `task-master clear-subtasks --id=<id>`.
+
+## Tools
+
+### 1. Expand Task (`expand_task`)
+
+*   **MCP Tool:** `expand_task`
+*   **CLI Command:** `task-master expand [options]`
+*   **Description:** `Use Taskmaster's AI to break down a complex task into smaller, manageable subtasks. Appends subtasks by default.`
+*   **Key Parameters/Options:**
+    *   `id`: `The ID of the specific Taskmaster task you want to break down into subtasks.` (CLI: `-i, --id <id>`)
+    *   `num`: `Optional: Suggests how many subtasks Taskmaster should aim to create. Uses complexity analysis/defaults otherwise.` (CLI: `-n, --num <number>`)
+    *   `research`: `Enable Taskmaster to use the research role for more informed subtask generation. Requires appropriate API key.` (CLI: `-r, --research`)
+    *   `prompt`: `Optional: Provide extra context or specific instructions to Taskmaster for generating the subtasks.` (CLI: `-p, --prompt <text>`)
+    *   `force`: `Optional: If true, clear existing subtasks before generating new ones. Default is false (append).` (CLI: `--force`)
+    *   `file`: `Path to your Taskmaster 'tasks.json' file. Default relies on auto-detection.` (CLI: `-f, --file <file>`)
+*   **Usage:** Generate a detailed implementation plan for a complex task before starting coding. Automatically uses complexity report recommendations if available and `num` is not specified.
+*   **Important:** This MCP tool makes AI calls and can take up to a minute to complete. Please inform users to hang tight while the operation is in progress.
+
+### 2. Expand All Tasks (`expand_all`)
+
+*   **MCP Tool:** `expand_all`
+*   **CLI Command:** `task-master expand --all [options]` (Note: CLI uses the `expand` command with the `--all` flag)
+*   **Description:** `Tell Taskmaster to automatically expand all eligible pending/in-progress tasks based on complexity analysis or defaults. Appends subtasks by default.`
+*   **Key Parameters/Options:**
+    *   `num`: `Optional: Suggests how many subtasks Taskmaster should aim to create per task.` (CLI: `-n, --num <number>`)
+    *   `research`: `Enable research role for more informed subtask generation. Requires appropriate API key.` (CLI: `-r, --research`)
+    *   `prompt`: `Optional: Provide extra context for Taskmaster to apply generally during expansion.` (CLI: `-p, --prompt <text>`)
+    *   `force`: `Optional: If true, clear existing subtasks before generating new ones for each eligible task. Default is false (append).` (CLI: `--force`)
+    *   `file`: `Path to your Taskmaster 'tasks.json' file. Default relies on auto-detection.` (CLI: `-f, --file <file>`)
+*   **Usage:** Useful after initial task generation or complexity analysis to break down multiple tasks at once.
+*   **Important:** This MCP tool makes AI calls and can take up to a minute to complete. Please inform users to hang tight while the operation is in progress.
+
+### 3. Clear Subtasks (`clear_subtasks`)
+
+*   **MCP Tool:** `clear_subtasks`
+*   **CLI Command:** `task-master clear-subtasks [options]`
+*   **Description:** `Remove all subtasks from one or more specified Taskmaster parent tasks.`
+*   **Key Parameters/Options:**
+    *   `id`: `The ID(s) of the Taskmaster parent task(s) whose subtasks you want to remove, e.g., '15' or '16,18'. Required unless using `all`.) (CLI: `-i, --id <ids>`)
+    *   `all`: `Tell Taskmaster to remove subtasks from all parent tasks.` (CLI: `--all`)
+    *   `file`: `Path to your Taskmaster 'tasks.json' file. Default relies on auto-detection.` (CLI: `-f, --file <file>`)
+*   **Usage:** Used before regenerating subtasks with `expand_task` if the previous breakdown needs replacement.
+
+### 4. Remove Subtask (`remove_subtask`)
+
+*   **MCP Tool:** `remove_subtask`
+*   **CLI Command:** `task-master remove-subtask [options]`
+*   **Description:** `Remove a subtask from its Taskmaster parent, optionally converting it into a standalone task.`
+*   **Key Parameters/Options:**
+    *   `id`: `Required. The ID(s) of the Taskmaster subtask(s) to remove, e.g., '15.2' or '16.1,16.3'.` (CLI: `-i, --id <id>`)
+    *   `convert`: `If used, Taskmaster will turn the subtask into a regular top-level task instead of deleting it.` (CLI: `-c, --convert`)
+    *   `skipGenerate`: `Prevent Taskmaster from automatically regenerating markdown task files after removing the subtask.` (CLI: `--skip-generate`)
+    *   `file`: `Path to your Taskmaster 'tasks.json' file. Default relies on auto-detection.` (CLI: `-f, --file <file>`)
+*   **Usage:** Delete unnecessary subtasks or promote a subtask to a top-level task.
+
+### 5. Move Task (`move_task`)
+
+*   **MCP Tool:** `move_task`
+*   **CLI Command:** `task-master move [options]`
+*   **Description:** `Move a task or subtask to a new position within the task hierarchy.`
+*   **Key Parameters/Options:**
+    *   `from`: `Required. ID of the task/subtask to move (e.g., "5" or "5.2"). Can be comma-separated for multiple tasks.` (CLI: `--from <id>`)
+    *   `to`: `Required. ID of the destination (e.g., "7" or "7.3"). Must match the number of source IDs if comma-separated.` (CLI: `--to <id>`)
+    *   `file`: `Path to your Taskmaster 'tasks.json' file. Default relies on auto-detection.` (CLI: `-f, --file <file>`)
+*   **Usage:** Reorganize tasks by moving them within the hierarchy. Supports various scenarios like:
+    *   Moving a task to become a subtask
+    *   Moving a subtask to become a standalone task
+    *   Moving a subtask to a different parent
+    *   Reordering subtasks within the same parent
+    *   Moving a task to a new, non-existent ID (automatically creates placeholders)
+    *   Moving multiple tasks at once with comma-separated IDs
+*   **Validation Features:**
+    *   Allows moving tasks to non-existent destination IDs (creates placeholder tasks)
+    *   Prevents moving to existing task IDs that already have content (to avoid overwriting)
+    *   Validates that source tasks exist before attempting to move them
+    *   Maintains proper parent-child relationships
+*   **Example CLI:** `task-master move --from=5.2 --to=7.3` to move subtask 5.2 to become subtask 7.3.
+*   **Example Multi-Move:** `task-master move --from=10,11,12 --to=16,17,18` to move multiple tasks to new positions.
+*   **Common Use:** Resolving merge conflicts in tasks.json when multiple team members create tasks on different branches.

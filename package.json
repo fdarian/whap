@@ -1,0 +1,26 @@
+{
+	"name": "whap",
+	"description": "CLI and mock server for testing WhatsApp integration",
+	"type": "module",
+	"scripts": {
+		"start:server": "bun run src/server/server.ts",
+		"start:cli": "bun run src/index.tsx"
+	},
+	"dependencies": {
+		"@types/react": "^18.2.0",
+		"@types/uuid": "^10.0.0",
+		"chalk": "^5.3.0",
+		"date-fns": "^3.6.0",
+		"dotenv": "^16.5.0",
+		"hono": "^4.7.10",
+		"ink": "^5.0.1",
+		"ky": "^1.7.2",
+		"react": "^18.2.0",
+		"reconnecting-websocket": "^4.4.0",
+		"uuid": "^10.0.0"
+	},
+	"devDependencies": {
+		"@types/bun": "^1.2.16",
+		"typescript": "^5.0.0"
+	}
+}

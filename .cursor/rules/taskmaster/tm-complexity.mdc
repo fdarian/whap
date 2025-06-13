@@ -1,0 +1,36 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
+## Overview
+
+-   Run `analyze_project_complexity` / CLI `task-master analyze-complexity --research` for comprehensive analysis
+-   Review complexity report via `complexity_report` / CLI `task-master complexity-report` for a formatted, readable version.
+-   Focus on tasks with highest complexity scores (8-10) for detailed breakdown
+-   Use analysis results to determine appropriate subtask allocation
+-   Note that reports are automatically used by the `expand_task` tool/command
+
+## Tools
+
+### 1. Analyze Project Complexity (`analyze_project_complexity`)
+
+*   **MCP Tool:** `analyze_project_complexity`
+*   **CLI Command:** `task-master analyze-complexity [options]`
+*   **Description:** `Have Taskmaster analyze your tasks to determine their complexity and suggest which ones need to be broken down further.`
+*   **Key Parameters/Options:**
+    *   `output`: `Where to save the complexity analysis report (default: '.taskmaster/reports/task-complexity-report.json').` (CLI: `-o, --output <file>`)
+    *   `threshold`: `The minimum complexity score (1-10) that should trigger a recommendation to expand a task.` (CLI: `-t, --threshold <number>`)
+    *   `research`: `Enable research role for more accurate complexity analysis. Requires appropriate API key.` (CLI: `-r, --research`)
+    *   `file`: `Path to your Taskmaster 'tasks.json' file. Default relies on auto-detection.` (CLI: `-f, --file <file>`)
+*   **Usage:** Used before breaking down tasks to identify which ones need the most attention.
+*   **Important:** This MCP tool makes AI calls and can take up to a minute to complete. Please inform users to hang tight while the operation is in progress.
+
+### 2. View Complexity Report (`complexity_report`)
+
+*   **MCP Tool:** `complexity_report`
+*   **CLI Command:** `task-master complexity-report [options]`
+*   **Description:** `Display the task complexity analysis report in a readable format.`
+*   **Key Parameters/Options:**
+    *   `file`: `Path to the complexity report (default: '.taskmaster/reports/task-complexity-report.json').` (CLI: `-f, --file <file>`)
+*   **Usage:** Review and understand the complexity analysis results after running analyze-complexity.

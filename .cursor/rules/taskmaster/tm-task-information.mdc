@@ -1,0 +1,84 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
+## Task Status
+
+-   Use 'pending' for tasks ready to be worked on
+-   Use 'done' for completed and verified tasks
+-   Use 'deferred' for postponed tasks
+-   Add custom status values as needed for project-specific workflows
+
+## Task Structure Fields
+
+- **id**: Unique identifier for the task (Example: `1`, `1.1`)
+- **title**: Brief, descriptive title (Example: `"Initialize Repo"`)
+- **description**: Concise summary of what the task involves (Example: `"Create a new repository, set up initial structure."`)
+- **status**: Current state of the task (Example: `"pending"`, `"done"`, `"deferred"`)
+- **dependencies**: IDs of prerequisite tasks (Example: `[1, 2.1]`)
+    - Dependencies are displayed with status indicators (✅ for completed, ⏱️ for pending)
+    - This helps quickly identify which prerequisite tasks are blocking work
+- **priority**: Importance level (Example: `"high"`, `"medium"`, `"low"`)
+- **details**: In-depth implementation instructions (Example: `"Use GitHub client ID/secret, handle callback, set session token."`) 
+- **testStrategy**: Verification approach (Example: `"Deploy and call endpoint to confirm 'Hello World' response."`) 
+- **subtasks**: List of smaller, more specific tasks (Example: `[{"id": 1, "title": "Configure OAuth", ...}]`) 
+- Refer to task structure details (previously linked to `tasks.mdc`).
+
+## Viewing Specific Task Details
+
+- Run `get_task` / CLI `task-master show <id>` to view a specific task.
+- Use dot notation for subtasks: `task-master show 1.2` (shows subtask 2 of task 1)
+- Displays comprehensive information similar to the next command, but for a specific task
+- For parent tasks, shows all subtasks and their current status
+- For subtasks, shows parent task information and relationship
+- Provides contextual suggested actions appropriate for the specific task
+- Useful for examining task details before implementation or checking status
+
+## Determining the Next Task
+
+- Run `next_task` / CLI `task-master next` to show the next task to work on.
+- The command identifies tasks with all dependencies satisfied
+- Tasks are prioritized by priority level, dependency count, and ID
+- The command shows comprehensive task information including:
+    - Basic task details and description
+    - Implementation details
+    - Subtasks (if they exist)
+    - Contextual suggested actions
+- Recommended before starting any new development work
+- Respects your project's dependency structure
+- Ensures tasks are completed in the appropriate sequence
+- Provides ready-to-use commands for common task actions
+
+## Tools
+
+### 1. Get Tasks (`get_tasks`)
+
+*   **MCP Tool:** `get_tasks`
+*   **CLI Command:** `task-master list [options]`
+*   **Description:** `List your Taskmaster tasks, optionally filtering by status and showing subtasks.`
+*   **Key Parameters/Options:**
+    *   `status`: `Show only Taskmaster tasks matching this status, e.g., 'pending' or 'done'.` (CLI: `-s, --status <status>`)
+    *   `withSubtasks`: `Include subtasks indented under their parent tasks in the list.` (CLI: `--with-subtasks`)
+    *   `file`: `Path to your Taskmaster 'tasks.json' file. Default relies on auto-detection.` (CLI: `-f, --file <file>`)
+*   **Usage:** Get an overview of the project status, often used at the start of a work session.
+
+### 2. Get Next Task (`next_task`)
+
+*   **MCP Tool:** `next_task`
+*   **CLI Command:** `task-master next [options]`
+*   **Description:** `Ask Taskmaster to show the next available task you can work on, based on status and completed dependencies.`
+*   **Key Parameters/Options:**
+    *   `file`: `Path to your Taskmaster 'tasks.json' file. Default relies on auto-detection.` (CLI: `-f, --file <file>`)
+*   **Usage:** Identify what to work on next according to the plan.
+
+### 3. Get Task Details (`get_task`)
+
+*   **MCP Tool:** `get_task`
+*   **CLI Command:** `task-master show [id] [options]`
+*   **Description:** `Display detailed information for a specific Taskmaster task or subtask by its ID.`
+*   **Key Parameters/Options:**
+    *   `id`: `Required. The ID of the Taskmaster task, e.g., '15', or subtask, e.g., '15.2', you want to view.` (CLI: `[id]` positional or `-i, --id <id>`)
+    *   `file`: `Path to your Taskmaster 'tasks.json' file. Default relies on auto-detection.` (CLI: `-f, --file <file>`)
+*   **Usage:** Understand the full details, implementation notes, and test strategy for a specific task before starting work.
+

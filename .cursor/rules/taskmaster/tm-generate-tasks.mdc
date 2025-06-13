@@ -1,0 +1,15 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
+## Tools
+
+### 1. Generate Task Files (`generate`)
+*   **MCP Tool:** `generate`
+*   **CLI Command:** `task-master generate [options]`
+*   **Description:** `Create or update individual Markdown files for each task based on your tasks.json.`
+*   **Key Parameters/Options:**
+    *   `output`: `The directory where Taskmaster should save the task files (default: in a 'tasks' directory).` (CLI: `-o, --output <directory>`)
+    *   `file`: `Path to your Taskmaster 'tasks.json' file. Default relies on auto-detection.` (CLI: `-f, --file <file>`)
+*   **Usage:** Run this after making changes to tasks.json to keep individual task files up to date.

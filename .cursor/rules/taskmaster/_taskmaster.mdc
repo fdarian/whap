@@ -1,0 +1,146 @@
+---
+description: Comprehensive reference for Taskmaster MCP tools and CLI commands.
+globs: **/*
+alwaysApply: true
+---
+# Coding with Taskmaster (Guidelines, Tool & Command Reference)
+
+This document provides a detailed reference and guidelines for interacting with Taskmaster to manage software development projects, covering both the recommended MCP tools, suitable for integrations like Cursor, and the corresponding `task-master` CLI commands, designed for direct user interaction or fallback.
+
+**Note:** For interacting with Taskmaster programmatically or via integrated tools, using the **MCP tools is strongly recommended** due to better performance, structured data, and error handling. The CLI commands serve as a user-friendly alternative and fallback. 
+
+**Important:** Several MCP tools involve AI processing... The AI-powered tools include `parse_prd`, `analyze_project_complexity`, `update_subtask`, `update_task`, `update`, `expand_all`, `expand_task`, and `add_task`.
+
+## Overview: Standard Development Workflow Process
+-   Start new projects by running `initialize_project` tool / CLI `task-master init` or `parse_prd` / CLI `task-master parse-prd --input='<prd-file.txt>'` (see [Initialization](mdc:#initialization)) to generate initial tasks
+-   Determine the next task to work on using `next_task` (see [tm-task-information.mdc](mdc:.cursor/rules/taskmaster/tm-task-information.mdc)) / CLI `task-master next`.
+-   Analyze task complexity with `analyze_project_complexity` (see [tm-complexity.mdc](mdc:.cursor/rules/taskmaster/tm-complexity.mdc)) / CLI `task-master analyze-complexity --research` before breaking down tasks.json
+-   Review complexity report using `complexity_report` (see [tm-complexity.mdc](mdc:.cursor/rules/taskmaster/tm-complexity.mdc)) / CLI `task-master complexity-report`.
+-   Select tasks based on dependencies (all marked 'done'), priority level, and ID order
+-   Clarify tasks by checking task files in tasks/ directory or asking for user input
+-   View specific task details using `get_task` (see [tm-task-information.mdc](mdc:.cursor/rules/taskmaster/tm-task-information.mdc) section) / CLI `task-master show <id>` and to understand implementation requirements
+-   Break down complex tasks using `expand_task` (see [tm-task-structure.mdc](mdc:.cursor/rules/taskmaster/tm-task-structure.mdc)) / CLI `task-master expand --id=<id> --force --research` with appropriate flags like `--force` (to replace existing subtasks) and `--research`.
+-   Clear existing subtasks if needed using `clear_subtasks` (see [tm-task-structure.mdc](mdc:.cursor/rules/taskmaster/tm-task-structure.mdc)) / CLI `task-master clear-subtasks --id=<id>` before regenerating
+-   Implement code following task details, dependencies, and project standards
+-   Verify tasks according to test strategies before marking as complete
+-   Mark completed tasks with `set_task_status` (see [tm-task-management.mdc](mdc:.cursor/rules/taskmaster/tm-task-management.mdc)) / CLI `task-master set-status --id=<id> --status=done`
+-   Update dependent tasks when implementation differs from original plan using `update` / CLI `task-master update --from=<id> --prompt="..."` or `update_task` / CLI `task-master update-task --id=<id> --prompt="..."` (see [tm-task-management.mdc](mdc:.cursor/rules/taskmaster/tm-task-management.mdc))
+-   Add new tasks discovered during implementation using `add_task` (see [tm-task-management.mdc](mdc:.cursor/rules/taskmaster/tm-task-management.mdc)) / CLI `task-master add-task --prompt="..." --research`.
+-   Add new subtasks as needed using `add_subtask` (see [tm-task-management.mdc](mdc:.cursor/rules/taskmaster/tm-task-management.mdc)) / CLI `task-master add-subtask --parent=<id> --title="..."`.
+-   Append notes or details to subtasks using `update_subtask` (see [tm-task-management.mdc](mdc:.cursor/rules/taskmaster/tm-task-management.mdc)) / CLI `task-master update-subtask --id=<subtaskId> --prompt='Add implementation notes here...\nMore details...'`.
+-   Generate task files with `generate` (see [tm-generate-tasks.mdc](mdc:.cursor/rules/taskmaster/tm-generate-tasks.mdc)) / CLI `task-master generate` after updating tasks.json
+-   Maintain valid dependency structure with `add_dependency`/`remove_dependency` tools or CLI `task-master add-dependency`/`remove-dependency` commands, `validate_dependencies` / `task-master validate-dependencies`, and `fix_dependencies` / CLI `task-master fix-dependencies` (see [tm-task-dependency.mdc](mdc:.cursor/rules/taskmaster/tm-task-dependency.mdc)) when needed
+-   Respect dependency chains and task priorities when selecting work
+-   Report progress regularly using `get_tasks` (see [tm-task-information.mdc](mdc:.cursor/rules/taskmaster/tm-task-information.mdc)) / CLI `task-master list`
+-   Reorganize tasks as needed using `move_task` (see [tm-task-structure.mdc](mdc:.cursor/rules/taskmaster/tm-task-structure.mdc)) / CLI `task-master move --from=<id> --to=<id>` to change task hierarchy or ordering
+
+## Initialization
+
+1. Initialize Project -> [tm-initialize.mdc](mdc:.cursor/rules/taskmaster/tm-initialize.mdc)
+2. Parse PRD -> [tm-parse-prd.mdc](mdc:.cursor/rules/taskmaster/tm-parse-prd.mdc)
+3. Generate tasks files -> [tm-generate-tasks.mdc](mdc:.cursor/rules/taskmaster/tm-generate-tasks.mdc)
+
+## Working with Tasks
+
+1. Task Listing & Viewing -> [tm-task-information.mdc](mdc:.cursor/rules/taskmaster/tm-task-information.mdc)
+2. Task Creation & Modification -> [tm-task-management.mdc](mdc:.cursor/rules/taskmaster/tm-task-management.mdc)
+3. Task Structure & Breakdown -> [tm-task-structure.mdc](mdc:.cursor/rules/taskmaster/tm-task-structure.mdc)
+4. Managing task dependency -> [tm-task-dependency.mdc](mdc:.cursor/rules/taskmaster/tm-task-dependency.mdc)
+
+### Iterative Subtask Implementation
+
+Once a task has been broken down into subtasks using `expand_task` or similar methods, follow this iterative process for implementation:
+
+1.  **Understand the Goal (Preparation):**
+    *   Use `get_task` (see [tm-task-information.mdc](mdc:.cursor/rules/taskmaster/tm-task-information.mdc)) / CLI `task-master show <subtaskId>` to thoroughly understand the specific goals and requirements of the subtask.
+
+2.  **Initial Exploration & Planning (Iteration 1):**
+    *   This is the first attempt at creating a concrete implementation plan.
+    *   Explore the codebase to identify the precise files, functions, and even specific lines of code that will need modification.
+    *   Determine the intended code changes (diffs) and their locations.
+    *   Gather *all* relevant details from this exploration phase.
+
+3.  **Log the Plan:**
+    *   Run `update_subtask` (see [tm-task-management.mdc](mdc:.cursor/rules/taskmaster/tm-task-management.mdc)) / CLI `task-master update-subtask --id=<subtaskId> --prompt='<detailed plan>'`.
+    *   Provide the *complete and detailed* findings from the exploration phase in the prompt. Include file paths, line numbers, proposed diffs, reasoning, and any potential challenges identified. Do not omit details. The goal is to create a rich, timestamped log within the subtask's `details`.
+
+4.  **Verify the Plan:**
+    *   Run `get_task` / CLI `task-master show <subtaskId>` again to confirm that the detailed implementation plan has been successfully appended to the subtask's details.
+
+5.  **Begin Implementation:**
+    *   Set the subtask status using `set_task_status` (see [tm-task-information.mdc](mdc:.cursor/rules/taskmaster/tm-task-information.mdc)) / CLI `task-master set-status --id=<subtaskId> --status=in-progress`.
+    *   Start coding based on the logged plan.
+
+6.  **Refine and Log Progress (Iteration 2+):**
+    *   As implementation progresses, you will encounter challenges, discover nuances, or confirm successful approaches.
+    *   **Before appending new information**: Briefly review the *existing* details logged in the subtask (using `get_task` or recalling from context) to ensure the update adds fresh insights and avoids redundancy.
+    *   **Regularly** use `update_subtask` / CLI `task-master update-subtask --id=<subtaskId> --prompt='<update details>\n- What worked...\n- What didn't work...'` to append new findings.
+    *   **Crucially, log:**
+        *   What worked ("fundamental truths" discovered).
+        *   What didn't work and why (to avoid repeating mistakes).
+        *   Specific code snippets or configurations that were successful.
+        *   Decisions made, especially if confirmed with user input.
+        *   Any deviations from the initial plan and the reasoning.
+    *   The objective is to continuously enrich the subtask's details, creating a log of the implementation journey that helps the AI (and human developers) learn, adapt, and avoid repeating errors.
+
+7.  **Review & Update Rules (Post-Implementation):**
+    *   Once the implementation for the subtask is functionally complete, review all code changes and the relevant chat history.
+    *   Identify any new or modified code patterns, conventions, or best practices established during the implementation.
+    *   Create new or update existing rules following internal guidelines (previously linked to [cursor_rules.mdc](mdc:.cursor/rules/cursor_rules.mdc) and [_self_improve.mdc](mdc:.cursor/rules/_self_improve.mdc)).
+
+8.  **Mark Task Complete:**
+    *   After verifying the implementation and updating any necessary rules, mark the subtask as completed: `set_task_status` / CLI `task-master set-status --id=<subtaskId> --status=done`.
+
+9.  **Commit Changes (If using Git):**
+    *   Stage the relevant code changes and any updated/new rule files (`git add .`).
+    *   Craft a comprehensive Git commit message summarizing the work done for the subtask, including both code implementation and any rule adjustments.
+    *   Execute the commit command directly in the terminal (e.g., `git commit -m 'feat(module): Implement feature X for subtask <subtaskId>\n\n- Details about changes...\n- Updated rule Y for pattern Z'`).
+    *   Consider if a Changeset is needed according to internal versioning guidelines (previously linked to `changeset.mdc`). If so, run `npm run changeset`, stage the generated file, and amend the commit or create a new one.
+
+10. **Proceed to Next Subtask:**
+    *   Identify the next subtask (e.g., using `next_task` / CLI `task-master next`).
+
+
+## Project complexity
+
+1. Analyze project complexity -> [tm-complexity.mdc](mdc:.cursor/rules/taskmaster/tm-complexity.mdc)
+
+## Configuration
+
+**Outline**
+
+1. Configure AI Models -> [tm-manage-models.mdc](mdc:.cursor/rules/taskmaster/tm-manage-models.mdc)
+2. Environment Variables Configuration -> [tm-env.mdc](mdc:.cursor/rules/taskmaster/tm-env.mdc)
+
+**Overview**
+
+Taskmaster configuration is managed through two main mechanisms:
+
+1.  **`.taskmaster/config.json` File (Primary):**
+    *   Located in the project root directory.
+    *   Stores most configuration settings: AI model selections (main, research, fallback), parameters (max tokens, temperature), logging level, default subtasks/priority, project name, etc.
+    *   **Managed via `task-master models --setup` command.** Do not edit manually unless you know what you are doing.
+    *   **View/Set specific models via `task-master models` command or `models` MCP tool.**
+    *   Created automatically when you run `task-master models --setup` for the first time.
+
+2.  **Environment Variables (`.env` / `mcp.json`):**
+    *   Used **only** for sensitive API keys and specific endpoint URLs.
+    *   Place API keys (one per provider) in a `.env` file in the project root for CLI usage.
+    *   For MCP/Cursor integration, configure these keys in the `env` section of `.cursor/mcp.json`.
+    *   Available keys/variables: See `assets/env.example` or the Configuration section in the command reference (previously linked to `taskmaster.mdc`).
+
+**Important:** Non-API key settings (like model selections, `MAX_TOKENS`, `TASKMASTER_LOG_LEVEL`) are **no longer configured via environment variables**. Use the `task-master models` command (or `--setup` for interactive configuration) or the `models` MCP tool.
+**If AI commands FAIL in MCP** verify that the API key for the selected provider is present in the `env` section of `.cursor/mcp.json`.
+**If AI commands FAIL in CLI** verify that the API key for the selected provider is present in the `.env` file in the root of the project.
+
+## Code Analysis & Refactoring Techniques
+
+- **Top-Level Function Search**:
+    - Useful for understanding module structure or planning refactors.
+    - Use grep/ripgrep to find exported functions/constants:
+      `rg "export (async function|function|const) \w+"` or similar patterns.
+    - Can help compare functions between files during migrations or identify potential naming conflicts.
+
+---
+
+*This workflow provides a general guideline. Adapt it based on your specificctices.*

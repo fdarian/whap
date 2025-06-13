@@ -1,0 +1,55 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
+## Overview
+
+- Use `add_dependency` / CLI `task-master add-dependency --id=<id> --depends-on=<id>` to add a dependency.
+- Use `remove_dependency` / CLI `task-master remove-dependency --id=<id> --depends-on=<id>` to remove a dependency.
+- The system prevents circular dependencies and duplicate dependency entries
+- Dependencies are checked for existence before being added or removed
+- Task files are automatically regenerated after dependency changes
+- Dependencies are visualized with status indicators in task listings and files
+
+## Tools
+
+### 1. Add Dependency (`add_dependency`)
+
+*   **MCP Tool:** `add_dependency`
+*   **CLI Command:** `task-master add-dependency [options]`
+*   **Description:** `Define a dependency in Taskmaster, making one task a prerequisite for another.`
+*   **Key Parameters/Options:**
+    *   `id`: `Required. The ID of the Taskmaster task that will depend on another.` (CLI: `-i, --id <id>`)
+    *   `dependsOn`: `Required. The ID of the Taskmaster task that must be completed first, the prerequisite.` (CLI: `-d, --depends-on <id>`)
+    *   `file`: `Path to your Taskmaster 'tasks.json' file. Default relies on auto-detection.` (CLI: `-f, --file <path>`)
+*   **Usage:** Establish the correct order of execution between tasks.
+
+### 2. Remove Dependency (`remove_dependency`)
+
+*   **MCP Tool:** `remove_dependency`
+*   **CLI Command:** `task-master remove-dependency [options]`
+*   **Description:** `Remove a dependency relationship between two Taskmaster tasks.`
+*   **Key Parameters/Options:**
+    *   `id`: `Required. The ID of the Taskmaster task you want to remove a prerequisite from.` (CLI: `-i, --id <id>`)
+    *   `dependsOn`: `Required. The ID of the Taskmaster task that should no longer be a prerequisite.` (CLI: `-d, --depends-on <id>`)
+    *   `file`: `Path to your Taskmaster 'tasks.json' file. Default relies on auto-detection.` (CLI: `-f, --file <file>`)
+*   **Usage:** Update task relationships when the order of execution changes.
+
+### 3. Validate Dependencies (`validate_dependencies`)
+
+*   **MCP Tool:** `validate_dependencies`
+*   **CLI Command:** `task-master validate-dependencies [options]`
+*   **Description:** `Check your Taskmaster tasks for dependency issues (like circular references or links to non-existent tasks) without making changes.`
+*   **Key Parameters/Options:**
+    *   `file`: `Path to your Taskmaster 'tasks.json' file. Default relies on auto-detection.` (CLI: `-f, --file <file>`)
+*   **Usage:** Audit the integrity of your task dependencies.
+
+### 4. Fix Dependencies (`fix_dependencies`)
+
+*   **MCP Tool:** `fix_dependencies`
+*   **CLI Command:** `task-master fix-dependencies [options]`
+*   **Description:** `Automatically fix dependency issues (like circular references or links to non-existent tasks) in your Taskmaster tasks.`
+*   **Key Parameters/Options:**
+    *   `file`: `Path to your Taskmaster 'tasks.json' file. Default relies on auto-detection.` (CLI: `-f, --file <file>`)
+*   **Usage:** Clean up dependency errors automatically.
