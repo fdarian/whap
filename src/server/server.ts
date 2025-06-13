@@ -8,6 +8,7 @@ import { getWebhookConfig } from "./config.ts";
 import { conversationRouter } from "./routes/conversation.ts";
 import { messagesRouter } from "./routes/messages.ts";
 import { statusRouter } from "./routes/status.ts";
+import { templatesRouter } from "./routes/templates.ts";
 import { webhooksRouter } from "./routes/webhooks.ts";
 import { addClient, removeClient } from "./websocket.ts";
 import { templateStore } from "./store/template-store.ts";
@@ -93,6 +94,7 @@ app.post("/debug/reload-templates", async (c) => {
 	}
 });
 app.route("/v22.0", messagesRouter);
+app.route("/v22.0", templatesRouter);
 // The /mock path is for internal simulation tools
 app.route("/mock", webhooksRouter);
 app.route("/status", statusRouter);
