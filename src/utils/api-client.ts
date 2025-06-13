@@ -267,9 +267,12 @@ export class ApiClient {
 	): Promise<Template | null> {
 		try {
 			const response = await this.client
-				.get(`v22.0/${businessAccountId}/message_templates/${templateName}`, {
-					searchParams: { language },
-				})
+				.get(
+					`v22.0/${businessAccountId}/message_templates/${encodeURIComponent(templateName)}`,
+					{
+						searchParams: { language },
+					}
+				)
 				.json<Template>()
 
 			return response

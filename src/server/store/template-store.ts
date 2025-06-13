@@ -257,9 +257,13 @@ export class TemplateStore {
 
 	/** Remove template by file path */
 	private removeTemplateByPath(filePath: string): void {
-		// Find template by matching the file path (simplified approach)
+		// Extract template name from file path for exact matching
+		const fileName = filePath.split('/').pop()?.replace('.json', '')
+		if (!fileName) return
+
+		// Find template by exact name match
 		for (const [key, template] of this.templates.entries()) {
-			if (filePath.includes(template.name)) {
+			if (template.name === fileName) {
 				this.templates.delete(key)
 				console.log(`🗑️  Removed template: ${key}`)
 				break

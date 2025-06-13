@@ -167,7 +167,7 @@ export const TemplateVariableCollector: FC<TemplateVariableCollectorProps> = ({
 		}
 
 		if (key.ctrl && input === 'p') {
-			setShowPreview(!showPreview)
+			setShowPreview((prev) => !prev)
 			return
 		}
 
@@ -203,6 +203,31 @@ export const TemplateVariableCollector: FC<TemplateVariableCollectorProps> = ({
 					)
 				}
 				previewText = `${previewText}${text}\n`
+			}
+
+			if (component.buttons) {
+				for (const button of component.buttons) {
+					if (button.text) {
+						let btnText = button.text
+						for (const [key, value] of Object.entries(parameters)) {
+							btnText = btnText.replace(
+								new RegExp(`\\{\\{${key}\\}\\}`, 'g'),
+								value || `{{${key}}}`
+							)
+						}
+						previewText += `\n[Button: ${btnText}]`
+					}
+					if (button.url) {
+						let url = button.url
+						for (const [key, value] of Object.entries(parameters)) {
+							url = url.replace(
+								new RegExp(`\\{\\{${key}\\}\\}`, 'g'),
+								value || `{{${key}}}`
+							)
+						}
+						previewText += `\n[URL: ${url}]`
+					}
+				}
 			}
 		}
 
