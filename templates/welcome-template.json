@@ -1,0 +1,26 @@
+{
+  "name": "welcome_message",
+  "language": "en",
+  "category": "UTILITY",
+  "components": [
+    {
+      "type": "HEADER",
+      "format": "TEXT",
+      "text": "Welcome to {{1}}!"
+    },
+    {
+      "type": "BODY",
+      "text": "Hi {{1}}, thank you for joining us! We're excited to have you as part of our community."
+    },
+    {
+      "type": "FOOTER",
+      "text": "Need help? Just reply to this message."
+    }
+  ],
+  "variables": {
+    "1": {
+      "description": "Service or company name",
+      "example": "MyService"
+    }
+  }
+}

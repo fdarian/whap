@@ -1,0 +1,442 @@
+# WhatsApp Template Testing Feature PRD
+
+## Overview
+
+The WhatsApp Template Testing Feature extends the existing WhatsApp Mock Server Development Tool to support message template definition, validation, and testing. This feature addresses the critical need for developers to test WhatsApp template messages locally without using real WhatsApp Business API endpoints, phone numbers, or incurring API costs during development.
+
+The system solves three primary development challenges: (1) Template testing complexity - developers need to test template messages without going through WhatsApp's approval process, (2) Local development workflow - testing template scenarios requires mock API compatibility with real WhatsApp template structure, and (3) Integration validation - ensuring template definitions work correctly before deploying to production.
+
+Target users are developers building WhatsApp integrations who need to test template functionality locally. The value proposition centers on accelerating development workflows by providing instant template testing capabilities within the existing mock server environment, eliminating the need for real WhatsApp Business accounts during development phases.
+
+## Core Features
+
+### Template Definition System
+**What it does**: Enables developers to define WhatsApp message templates using JSON configuration files stored locally, with validation against WhatsApp Business API schema.
+
+**Why it's important**: Template messages have complex structure requirements (header, body, footer, buttons) with strict formatting rules. Developers need to test these locally before production deployment to avoid costly rejections and iteration cycles.
+
+**How it works**: The system reads template definitions from a local `templates/` directory, validates JSON structure against WhatsApp schema, supports all template components (text/media headers, variable substitution, quick reply/CTA buttons), and provides immediate feedback on validation errors through the CLI interface.
+
+### Mock Template API Server
+**What it does**: Extends the existing Hono-based mock server to support WhatsApp template management endpoints, simulating the real WhatsApp Business Management API behavior.
+
+**Why it's important**: Developers need to test template creation, approval simulation, and template message sending without real WhatsApp Business accounts, API costs, or approval wait times.
+
+**How it works**: The server adds template management endpoints (`/message_templates`) to the existing mock API, maintains in-memory template registry that resets on server restart, simulates instant "approval" of submitted templates, and provides webhook simulation for template status updates.
+
+### CLI Template Interface
+**What it does**: Integrates template management into the existing React/Ink CLI interface, allowing developers to create, test, and send template messages interactively.
+
+**Why it's important**: The CLI provides the primary developer interface for testing. Template functionality needs to fit seamlessly into the existing conversation testing workflow.
+
+**How it works**: The interface adds template-specific commands to the existing CLI, displays available templates in the conversation interface, provides template message composition with variable input prompts, and shows real-time template message delivery status.
+
+### Template Message Testing
+**What it does**: Enables sending template messages through the existing mock conversation system with dynamic variable substitution and realistic webhook responses.
+
+**Why it's important**: Developers need to test the complete template message flow including variable injection, message formatting, and webhook handling before integrating with production systems.
+
+**How it works**: The system extends the existing `/messages` endpoint to accept template objects, performs client-side variable substitution for immediate feedback, generates realistic webhook payloads for template message delivery, and maintains conversation history including template messages.
+
+## User Experience
+
+### Primary User Persona
+
+**WhatsApp Integration Developer** - Builds applications that send WhatsApp messages, needs to test template functionality locally before production deployment, values rapid iteration cycles, requires realistic simulation of WhatsApp Business API behavior, and needs visual feedback for debugging template issues.
+
+### Key User Flows
+
+**Template Creation Flow**:
+1. Developer creates JSON template file in `templates/` directory
+2. Server automatically detects new template file and validates structure
+3. CLI displays template validation results with specific error messages
+4. Valid templates appear in CLI template selection menu
+5. Developer can immediately test template without approval delays
+
+**Template Testing Flow**:
+1. Developer starts mock server (`pnpm run start:server`) and CLI (`pnpm run start:cli`)
+2. CLI shows available templates in conversation interface
+3. Developer selects template and enters variable values through prompts
+4. Template message appears in conversation history with realistic formatting
+5. Mock webhooks simulate message delivery status in real-time
+
+**Template Development Iteration**:
+1. Developer modifies template JSON file while server is running
+2. Server hot-reloads template definitions automatically
+3. CLI updates available template list without restart
+4. Developer immediately tests changes in conversation flow
+5. Validation errors display instantly with specific line numbers and fixes
+
+### UI/UX Considerations
+
+The system integrates seamlessly into the existing CLI interface without disrupting the current two-process development workflow. Template functionality appears as natural extensions to the existing conversation testing interface. Error messages provide specific, actionable feedback with WhatsApp API compliance guidance. The CLI maintains the existing compact, single-line message format while clearly distinguishing template messages from regular text messages.
+
+## Technical Architecture
+
+### System Components Integration
+
+**Extended Hono Server** - Builds upon the existing mock server (`src/server/server.ts`) to add template management endpoints. Maintains the current in-memory storage approach with template registry that resets on server restart, consistent with the existing mock server behavior.
+
+**Template File System** - Simple file-based template storage using a `templates/` directory in the project root. Templates are JSON files that the server watches for changes and hot-reloads automatically, similar to how the existing mock server handles configuration.
+
+**Enhanced CLI Interface** - Extends the existing React/Ink CLI components to include template selection and testing capabilities. Integrates with the current simplified chat interface without disrupting the existing conversation flow.
+
+**Mock Webhook Simulation** - Leverages the existing webhook infrastructure to simulate template-related events including template approval status and message delivery confirmations.
+
+### Data Models
+
+**Template File Structure**:
+```json
+{
+  "name": "order_confirmation",
+  "category": "UTILITY",
+  "language": "en_US",
+  "components": [
+    {
+      "type": "BODY",
+      "text": "Hi {{1}}! Your order {{2}} has been confirmed and will be delivered to {{3}} by {{4}}.",
+      "example": {
+        "body_text": [["John"], ["#12345"], ["123 Main St"], ["2pm today"]]
+      }
+    }
+  ]
+}
+```
+
+**Message Request Extension**:
+```json
+{
+  "messaging_product": "whatsapp",
+  "to": "1234567890",
+  "type": "template",
+  "template": {
+    "name": "order_confirmation",
+    "language": { "code": "en_US" },
+    "components": [
+      {
+        "type": "body",
+        "parameters": [
+          { "type": "text", "text": "John" },
+          { "type": "text", "text": "#12345" },
+          { "type": "text", "text": "123 Main St" },
+          { "type": "text", "text": "2pm today" }
+        ]
+      }
+    ]
+  }
+}
+```
+
+### APIs and Integrations
+
+**New Mock Endpoints**:
+- `POST /v22.0/{phone-id}/message_templates` - Create/submit template (instant approval simulation)
+- `GET /v22.0/{phone-id}/message_templates` - List available templates
+- `DELETE /v22.0/{phone-id}/message_templates/{template-id}` - Delete template
+
+**Extended Existing Endpoints**:
+- `POST /v22.0/{phone-id}/messages` - Enhanced to support template objects alongside existing text messages
+- `/mock/webhooks/trigger` - Extended to support template status and delivery events
+
+**File System Integration**:
+- Templates loaded from `templates/*.json` files on server startup
+- Hot-reload capability when template files are modified
+- Automatic validation against WhatsApp Business API schema
+
+### Infrastructure Requirements
+
+**Development Environment** (No changes to existing setup):
+- Node.js with TSX for TypeScript execution
+- Hono server running on port 3010
+- React/Ink CLI interface
+- File system watching for template hot-reload
+- In-memory storage (consistent with existing approach)
+
+**Dependencies** (Minimal additions):
+- `chokidar` for file system watching (template hot-reload)
+- JSON schema validation library for template structure validation
+- Extend existing `ky` HTTP client usage for template API calls
+
+## Development Roadmap
+
+### Phase 1: Template File System (Foundation)
+**Scope**: Basic template file loading and validation
+**Deliverables**:
+- Create `templates/` directory structure in project root
+- JSON schema validation for template structure  
+- File system watcher for hot-reload functionality
+- Basic template registry in server memory
+- Template validation error reporting
+
+**Technical Requirements**:
+- Extend existing Hono server with template file loading
+- Add `chokidar` dependency for file watching
+- JSON schema validation using existing TypeScript patterns
+- Integration with existing server startup process
+- Maintain current in-memory storage approach
+
+**Success Criteria**:
+- Server loads templates from `templates/*.json` files on startup
+- Invalid template files show clear validation errors in server logs
+- Template modifications hot-reload without server restart
+- Template registry accessible via server memory
+
+### Phase 2: Mock API Endpoints
+**Scope**: WhatsApp Business API compatible template endpoints  
+**Deliverables**:
+- `POST /v22.0/{phone-id}/message_templates` endpoint for template submission
+- `GET /v22.0/{phone-id}/message_templates` endpoint for template listing
+- Template approval simulation (instant approval for development)
+- Integration with existing webhook simulation system
+
+**Technical Requirements**:
+- Extend existing Hono routing in `src/server/routes/`
+- Maintain compatibility with WhatsApp Business API v22.0 schema  
+- Use existing server patterns for response formatting
+- Integrate with current webhook infrastructure
+
+**Success Criteria**:
+- Template submission API returns WhatsApp-compatible responses
+- Template listing matches real API response format
+- Webhook events simulate template approval notifications
+- All endpoints follow existing server patterns and conventions
+
+### Phase 3: CLI Template Interface
+**Scope**: Template selection and testing in CLI interface
+**Deliverables**:
+- Template selection menu in existing CLI interface
+- Variable input prompts for template parameters
+- Template message display in conversation history
+- Template message composition integration
+
+**Technical Requirements**:
+- Extend existing React/Ink components in `src/components/`
+- Integration with current `SimplifiedChatInterface.tsx`
+- Use existing input handling patterns from `TextInput.tsx`
+- Maintain current CLI keyboard shortcuts and navigation
+
+**Success Criteria**:
+- Available templates appear in CLI template selection
+- Template variables prompt for user input before sending
+- Template messages display distinctly in conversation history
+- Template functionality integrates seamlessly with existing workflow
+
+### Phase 4: Template Message Sending
+**Scope**: Complete template message flow with variable substitution
+**Deliverables**:
+- Extend `/messages` endpoint to support template objects
+- Variable substitution engine for template parameters  
+- Template message webhook simulation
+- Template message conversation history
+
+**Technical Requirements**:
+- Modify existing message sending logic in server
+- Add template parameter validation and substitution
+- Generate realistic webhook payloads for template messages
+- Store template messages in existing conversation memory
+
+**Success Criteria**:
+- Template messages send successfully through existing `/messages` endpoint
+- Variable substitution works correctly with proper validation
+- Template message webhooks simulate delivery status accurately
+- Template messages appear in conversation history with proper formatting
+
+## Logical Dependency Chain
+
+### Foundation Layer (Priority 1)
+**Template File System** - Establish `templates/` directory with JSON file loading and validation. Required for all template functionality and provides the core template storage mechanism.
+
+**File System Watching** - Implement hot-reload capability for template files using `chokidar`. Depends on template file system. Essential for development workflow efficiency.
+
+**Template Validation** - Create JSON schema validator for WhatsApp template structure. Depends on file system loading. Critical for preventing malformed templates and ensuring API compatibility.
+
+### API Layer (Priority 2) 
+**Template Management Endpoints** - Build mock WhatsApp Business API endpoints for template operations. Depends on template file system and validation. Enables API-compatible template testing.
+
+**Template Registry** - Implement in-memory template storage with server integration. Requires file system foundation. Provides runtime template access for CLI and API.
+
+**Webhook Simulation** - Extend existing webhook system for template events. Depends on template management endpoints. Required for realistic template approval and delivery simulation.
+
+### Interface Layer (Priority 3)
+**CLI Template Selection** - Add template menu to existing CLI interface. Depends on template registry. Provides user access to available templates.
+
+**Variable Input System** - Create prompts for template parameter collection. Requires CLI template selection. Enables dynamic template customization.
+
+### Messaging Layer (Priority 4)
+**Template Message Sending** - Extend existing `/messages` endpoint for template support. Depends on variable input system and webhook simulation. Enables complete template message workflow.
+
+**Message History Integration** - Store template messages in existing conversation memory. Requires template message sending. Provides complete conversation context including templates.
+
+This dependency structure builds incrementally on existing infrastructure, ensuring each phase provides immediate testing value while maintaining compatibility with the current development workflow.
+
+## Risks and Mitigations
+
+### Technical Challenges
+
+**Template File Structure Complexity**
+*Risk*: WhatsApp template JSON structure is complex with strict validation rules. Developers may struggle with component structure, variable placement, and character limits leading to validation errors.
+*Mitigation*: Provide clear template examples in `templates/` directory, implement comprehensive validation with specific error messages, and create template documentation with common patterns. Use existing TypeScript patterns for schema validation to maintain consistency.
+
+**CLI Integration Disruption**
+*Risk*: Adding template functionality to the existing CLI interface could disrupt the current simplified workflow or introduce navigation complexity.
+*Mitigation*: Integrate template features as natural extensions to existing interfaces, maintain current keyboard shortcuts and navigation patterns, and ensure template functionality is optional/skippable in the workflow. Test thoroughly with existing CLI usage patterns.
+
+**File System Hot-Reload Issues**
+*Risk*: File watching and hot-reload functionality may not work consistently across different operating systems or cause performance issues with large numbers of template files.
+*Mitigation*: Use proven `chokidar` library for cross-platform file watching, implement debouncing for rapid file changes, and provide fallback manual reload option. Test on macOS, Windows, and Linux development environments.
+
+### Development Scope Management
+
+**Feature Complexity Creep**
+*Risk*: Template functionality could evolve beyond simple testing needs into complex template management features that don't align with the mock server's purpose.
+*Mitigation*: Maintain focus on development testing use cases, avoid building production-ready template management features, and document clear boundaries between mock functionality and real WhatsApp Business API capabilities.
+
+**API Compatibility Maintenance**
+*Risk*: WhatsApp Business API may change template structure or requirements, breaking the mock server's compatibility and invalidating developer testing.
+*Mitigation*: Track WhatsApp Business API updates regularly, maintain version compatibility documentation, and provide clear mapping between mock behavior and real API behavior. Focus on stable API features for initial implementation.
+
+### Development Workflow Integration
+
+**Two-Process Development Disruption**
+*Risk*: Template functionality could complicate the existing simple two-process workflow (server + CLI) or require additional setup steps.
+*Mitigation*: Maintain the current `pnpm run start:server` and `pnpm run start:cli` workflow without additional complexity, ensure templates work out-of-the-box with minimal configuration, and preserve the existing in-memory storage approach for simplicity.
+
+**Performance Impact on Development Flow**
+*Risk*: File watching, template validation, and additional CLI features could slow down the development iteration cycle or increase memory usage.
+*Mitigation*: Optimize file watching to monitor only the `templates/` directory, cache validated templates in memory, and ensure template features don't impact existing message sending performance. Profile memory usage to prevent development environment slowdown.
+
+## Appendix
+
+### Template File Structure Reference
+
+**Basic Template Example**:
+```json
+{
+  "name": "welcome_message",
+  "category": "UTILITY", 
+  "language": "en_US",
+  "components": [
+    {
+      "type": "BODY",
+      "text": "Welcome {{1}}! Your account has been created successfully.",
+      "example": {
+        "body_text": [["John Doe"]]
+      }
+    }
+  ]
+}
+```
+
+**Template with Header and Buttons**:
+```json
+{
+  "name": "order_update",
+  "category": "UTILITY",
+  "language": "en_US", 
+  "components": [
+    {
+      "type": "HEADER",
+      "format": "TEXT",
+      "text": "Order Update"
+    },
+    {
+      "type": "BODY", 
+      "text": "Hi {{1}}, your order {{2}} is ready for pickup!",
+      "example": {
+        "body_text": [["Sarah"], ["#12345"]]
+      }
+    },
+    {
+      "type": "BUTTONS",
+      "buttons": [
+        {
+          "type": "QUICK_REPLY",
+          "text": "Confirm Pickup"
+        },
+        {
+          "type": "QUICK_REPLY", 
+          "text": "Reschedule"
+        }
+      ]
+    }
+  ]
+}
+```
+
+### WhatsApp Business API Compatibility
+
+**Supported Template Components**:
+- Header: Text (60 chars), Image (5MB), Document (100MB/5 pages)
+- Body: 1,024 characters with up to 10 variables ({{1}} to {{10}})
+- Footer: 60 characters (plain text, no variables)
+- Buttons: Quick replies (3 max, 20 chars each) OR Call-to-action (2 max)
+
+**Supported Template Categories**:
+- AUTHENTICATION: 2FA codes, password resets, security alerts
+- MARKETING: Promotional content, announcements, offers
+- UTILITY: Transactional updates, confirmations, notifications
+- SERVICE: Post-purchase support, customer service responses
+
+**Mock vs Real API Behavior**:
+- Mock server: Instant template "approval" for development testing
+- Real API: 2-24 hour approval process with human review
+- Mock server: No rate limiting for development convenience
+- Real API: Strict rate limits based on phone number quality rating
+
+### Development Integration Patterns
+
+**Existing Project Integration**:
+- Templates directory: `{project_root}/templates/`
+- Server extension: Add routes to existing `src/server/routes/`
+- CLI integration: Extend `src/components/SimplifiedChatInterface.tsx`
+- Storage: Use existing in-memory approach, no database required
+
+**File Organization**:
+```
+project_root/
+├── templates/
+│   ├── welcome.json
+│   ├── order_confirmation.json
+│   └── payment_reminder.json
+├── src/
+│   ├── server/
+│   │   ├── routes/
+│   │   │   ├── messages.ts
+│   │   │   └── templates.ts (new)
+│   │   └── server.ts
+│   └── components/
+│       ├── SimplifiedChatInterface.tsx
+│       └── TemplateSelector.tsx (new)
+```
+
+**Environment Configuration**:
+- No additional environment variables required
+- Uses existing `PORT` configuration for server
+- Templates loaded automatically on server startup
+- Hot-reload enabled by default in development
+
+### Testing and Validation
+
+**Template Validation Checklist**:
+- Valid JSON structure
+- Required fields: name, category, language, components
+- Component structure matches WhatsApp schema
+- Variable sequence validation ({{1}}, {{2}}, etc.)
+- Character limits enforced
+- Example values provided for variables
+
+**Development Testing Flow**:
+1. Create template JSON file in `templates/` directory
+2. Server automatically validates and loads template
+3. CLI displays template in available options
+4. Test template message sending with variable input
+5. Verify template message appears in conversation history
+6. Confirm webhook simulation for delivery status
+
+**Common Template Errors**:
+- Missing required fields (name, category, language)
+- Invalid category values
+- Malformed component structure
+- Variable sequence gaps ({{1}}, {{3}} without {{2}})
+- Character limit violations
+- Missing example values for template variables

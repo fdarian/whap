@@ -1,0 +1,34 @@
+{
+  "name": "order_confirmation",
+  "language": "en",
+  "category": "UTILITY",
+  "components": [
+    {
+      "type": "HEADER",
+      "format": "TEXT",
+      "text": "Order Confirmed! 🎉"
+    },
+    {
+      "type": "BODY",
+      "text": "Hi {{1}}, your order #{{2}} has been confirmed! Total: ${{3}}. We'll notify you when it ships."
+    },
+    {
+      "type": "FOOTER",
+      "text": "Thank you for shopping with us!"
+    }
+  ],
+  "variables": {
+    "1": {
+      "description": "Customer name",
+      "example": "Sarah"
+    },
+    "2": {
+      "description": "Order number",
+      "example": "ORD-2024-001"
+    },
+    "3": {
+      "description": "Order total",
+      "example": "29.99"
+    }
+  }
+}
