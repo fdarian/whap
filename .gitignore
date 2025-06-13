@@ -1,3 +1,8 @@
+# Task Master AI
+tasks.json
+tasks/ 
+
+# From Bun's repo
 .DS_Store
 .env
 .envrc
