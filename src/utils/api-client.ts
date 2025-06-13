@@ -21,6 +21,34 @@ export interface ServerStatus {
 	messageCount: number
 }
 
+/** Template component structure based on WhatsApp Business API format */
+export interface TemplateComponent {
+	type: 'HEADER' | 'BODY' | 'FOOTER' | 'BUTTONS'
+	format?: 'TEXT' | 'IMAGE' | 'VIDEO' | 'DOCUMENT'
+	text?: string
+	buttons?: Array<{
+		type: 'QUICK_REPLY' | 'URL' | 'PHONE_NUMBER'
+		text: string
+		url?: string
+		phone_number?: string
+	}>
+}
+
+/** Template structure based on WhatsApp Business API format */
+export interface Template {
+	name: string
+	language: string
+	category: 'MARKETING' | 'UTILITY' | 'AUTHENTICATION'
+	components: TemplateComponent[]
+	variables?: Record<
+		string,
+		{
+			description: string
+			example: string
+		}
+	>
+}
+
 export class ApiClient {
 	private baseUrl
 	private client
@@ -214,6 +242,43 @@ export class ApiClient {
 		} catch (error) {
 			console.error('Error sending typing indicator:', error)
 			throw error
+		}
+	}
+
+	/** Get all available templates */
+	async getTemplates(businessAccountId = 'test'): Promise<Template[]> {
+		try {
+			const response = await this.client
+				.get(`v22.0/${businessAccountId}/message_templates`)
+				.json<{ data: Template[] }>()
+
+			return response.data
+		} catch (error) {
+			console.error('Error fetching templates:', error)
+			return []
+		}
+	}
+
+	/** Get a specific template by name and language */
+	async getTemplate(
+		templateName: string,
+		language = 'en',
+		businessAccountId = 'test'
+	): Promise<Template | null> {
+		try {
+			const response = await this.client
+				.get(
+					`v22.0/${businessAccountId}/message_templates/${encodeURIComponent(templateName)}`,
+					{
+						searchParams: { language },
+					}
+				)
+				.json<Template>()
+
+			return response
+		} catch (error) {
+			console.error(`Error fetching template ${templateName}:`, error)
+			return null
 		}
 	}
 }

@@ -4,10 +4,19 @@ import {
 	type StoredWebhookMessage,
 	mockStore,
 } from '../store/memory-store.ts'
+import type { Template, TemplateComponent } from '../types/api-types.ts'
 
 const conversationRouter = new Hono()
 
 type CombinedMessage = StoredMessage | StoredWebhookMessage
+
+/** Extract text content from processed template */
+function extractTemplateText(processedTemplate: Template): string {
+	return processedTemplate.components
+		.map((component: TemplateComponent) => component.text || '')
+		.filter((text: string) => text.length > 0)
+		.join('\n')
+}
 
 // Normalize phone number (remove/add + prefix consistently)
 function normalizePhoneNumber(phone: string): string {
@@ -71,7 +80,12 @@ conversationRouter.get('/', (c) => {
 				id: msg.id,
 				to: msg.to,
 				from: msg.phoneNumberId,
-				text: msg.content.text?.body || msg.content.template?.name || '',
+				text:
+					msg.content.text?.body ||
+					(msg.content.processedTemplate
+						? extractTemplateText(msg.content.processedTemplate)
+						: msg.content.template?.name) ||
+					'',
 				timestamp: msg.timestamp,
 				direction: 'sent' as const,
 			}

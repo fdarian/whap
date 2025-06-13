@@ -1,0 +1,26 @@
+{
+	"name": "sample_template",
+	"language": "en",
+	"category": "UTILITY",
+	"components": [
+		{
+			"type": "HEADER",
+			"format": "TEXT",
+			"text": "Hello {{1}}!"
+		},
+		{
+			"type": "BODY",
+			"text": "This is a sample template with variable {{1}}. You can customize this message."
+		},
+		{
+			"type": "FOOTER",
+			"text": "Powered by WhatsApp Business API"
+		}
+	],
+	"variables": {
+		"1": {
+			"description": "User name or greeting",
+			"example": "John"
+		}
+	}
+}

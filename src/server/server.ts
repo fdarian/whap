@@ -8,7 +8,9 @@ import { getWebhookConfig } from './config.ts'
 import { conversationRouter } from './routes/conversation.ts'
 import { messagesRouter } from './routes/messages.ts'
 import { statusRouter } from './routes/status.ts'
+import { templatesRouter } from './routes/templates.ts'
 import { webhooksRouter } from './routes/webhooks.ts'
+import { templateStore } from './store/template-store.ts'
 import { addClient, removeClient } from './websocket.ts'
 
 const app = new Hono()
@@ -16,6 +18,11 @@ const PORT = Number(process.env.PORT) || 3010
 
 // Initialize webhook configuration from CLI arguments and environment
 getWebhookConfig()
+
+// Initialize template store with hot-reload
+templateStore.initialize().catch((error) => {
+	console.error('❌ Failed to initialize template store:', error)
+})
 
 const { upgradeWebSocket, injectWebSocket } = createNodeWebSocket({
 	app,
@@ -38,10 +45,11 @@ app.use('*', async (c, next) => {
 	// Log body for POST/PUT requests
 	if (method === 'POST' || method === 'PUT') {
 		try {
-			const body = await c.req.json()
-			console.log('Body:', JSON.stringify(body, null, 2))
+			const clone = c.req.raw.clone()
+			const bodyText = await clone.text()
+			console.log('Body:', bodyText)
 		} catch {
-			// Body might not be JSON, that's okay
+			// Body might not be readable, that's okay
 		}
 	}
 
@@ -49,8 +57,48 @@ app.use('*', async (c, next) => {
 })
 
 // Routes
-app.get('/health', (c) => c.json({ ok: true, message: 'Server is healthy' }))
+app.get('/health', (c) =>
+	c.json({
+		ok: true,
+		message: 'Server is healthy',
+		templates: templateStore.getStats(),
+	})
+)
+
+// Debug endpoints (only in development)
+if (process.env.NODE_ENV !== 'production') {
+	// Debug endpoint for templates
+	app.get('/debug/templates', (c) =>
+		c.json({
+			stats: templateStore.getStats(),
+			templates: templateStore.getAllTemplates(),
+			templateNames: templateStore.getTemplateNames(),
+		})
+	)
+
+	// Manual refresh endpoint for testing
+	app.post('/debug/reload-templates', async (c) => {
+		try {
+			await templateStore.reloadTemplates()
+			return c.json({
+				success: true,
+				message: 'Templates reloaded successfully',
+				stats: templateStore.getStats(),
+			})
+		} catch (error) {
+			return c.json(
+				{
+					success: false,
+					message: 'Failed to reload templates',
+					error: error instanceof Error ? error.message : 'Unknown error',
+				},
+				500
+			)
+		}
+	})
+}
 app.route('/v22.0', messagesRouter)
+app.route('/v22.0', templatesRouter)
 // The /mock path is for internal simulation tools
 app.route('/mock', webhooksRouter)
 app.route('/status', statusRouter)

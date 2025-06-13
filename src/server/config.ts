@@ -42,9 +42,10 @@ function parseWebhookMappings(): Map<string, string> {
 				process.exit(1)
 			}
 
-if (mappings.has(phone)) {
-    throw new Error(`Duplicate phone number mapping: ${phone}`)
-}
+			if (mappings.has(phone)) {
+				console.error(`❌ Duplicate phone number mapping: ${phone}`)
+				process.exit(1)
+			}
 
 			mappings.set(phone, url)
 			console.log(`🔗 Configured webhook URL for phone ${phone}: ${url}`)
@@ -116,4 +117,19 @@ export function getAllWebhookMappings(): Array<{ phone: string; url: string }> {
 		phone,
 		url,
 	}))
+}
+
+/**
+ * Set or update the webhook URL mapping for a given phone number.
+ * This utility is primarily used in test suites to override webhook targets at runtime.
+ */
+export function setWebhookUrl(phoneNumber: string, url: string): void {
+	const config = getWebhookConfig()
+	// Validate URL format (aligns with parseWebhookMappings)
+	try {
+		new URL(url)
+	} catch {
+		throw new Error(`Invalid URL format passed to setWebhookUrl: ${url}`)
+	}
+	config.mappings.set(phoneNumber, url)
 }
