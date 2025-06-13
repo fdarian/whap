@@ -1,19 +1,19 @@
-import { format } from "date-fns";
-import { Box, Text, useInput } from "ink";
-import { type FC, useCallback, useEffect, useState } from "react";
-import type { ApiClient, Message, Template } from "../utils/api-client.ts";
-import { useTerminal } from "../utils/terminal.ts";
-import { webSocketClient } from "../utils/websocket-client.ts";
-import { TextInput } from "./TextInput.tsx";
+import { format } from 'date-fns'
+import { Box, Text, useInput } from 'ink'
+import { type FC, useCallback, useEffect, useState } from 'react'
+import type { ApiClient, Message, Template } from '../utils/api-client.ts'
+import { useTerminal } from '../utils/terminal.ts'
+import { webSocketClient } from '../utils/websocket-client.ts'
+import { TextInput } from './TextInput.tsx'
 
 interface SimplifiedChatInterfaceProps {
-	apiClient: ApiClient;
-	userPhoneNumber: string;
-	botPhoneNumber: string;
-	onNewConversation: () => void;
+	apiClient: ApiClient
+	userPhoneNumber: string
+	botPhoneNumber: string
+	onNewConversation: () => void
 }
 
-type InterfaceMode = "chat" | "templates" | "template-params";
+type InterfaceMode = 'chat' | 'templates' | 'template-params'
 
 export const SimplifiedChatInterface: FC<SimplifiedChatInterfaceProps> = ({
 	apiClient,
@@ -21,311 +21,311 @@ export const SimplifiedChatInterface: FC<SimplifiedChatInterfaceProps> = ({
 	botPhoneNumber,
 	onNewConversation,
 }) => {
-	const [messages, setMessages] = useState<Message[]>([]);
-	const [loading, setLoading] = useState(false);
-	const [error, setError] = useState<string>("");
-	const [currentMessage, setCurrentMessage] = useState("");
-	const [status, setStatus] = useState<"idle" | "sending" | "sent" | "error">(
-		"idle",
-	);
-	const [errorMessage, setErrorMessage] = useState("");
-	const [isAgentTyping, setIsAgentTyping] = useState(false);
+	const [messages, setMessages] = useState<Message[]>([])
+	const [loading, setLoading] = useState(false)
+	const [error, setError] = useState<string>('')
+	const [currentMessage, setCurrentMessage] = useState('')
+	const [status, setStatus] = useState<'idle' | 'sending' | 'sent' | 'error'>(
+		'idle'
+	)
+	const [errorMessage, setErrorMessage] = useState('')
+	const [isAgentTyping, setIsAgentTyping] = useState(false)
 
 	// Template-related state
-	const [mode, setMode] = useState<InterfaceMode>("chat");
-	const [templates, setTemplates] = useState<Template[]>([]);
-	const [selectedTemplateIndex, setSelectedTemplateIndex] = useState(0);
+	const [mode, setMode] = useState<InterfaceMode>('chat')
+	const [templates, setTemplates] = useState<Template[]>([])
+	const [selectedTemplateIndex, setSelectedTemplateIndex] = useState(0)
 	const [selectedTemplate, setSelectedTemplate] = useState<Template | null>(
-		null,
-	);
+		null
+	)
 	const [templateParams, setTemplateParams] = useState<Record<string, string>>(
-		{},
-	);
-	const [currentParamKey, setCurrentParamKey] = useState<string>("");
-	const [currentParamValue, setCurrentParamValue] = useState("");
-	const [templatesLoading, setTemplatesLoading] = useState(false);
+		{}
+	)
+	const [currentParamKey, setCurrentParamKey] = useState<string>('')
+	const [currentParamValue, setCurrentParamValue] = useState('')
+	const [templatesLoading, setTemplatesLoading] = useState(false)
 
-	const terminal = useTerminal();
+	const terminal = useTerminal()
 
 	// Calculate max messages based on available space - conservative approach
 	const calculateMaxMessages = useCallback(() => {
 		// Reserve space for header (3 lines) + input area (4 lines) + margins
-		const availableLines = Math.max(5, terminal.rows - 10);
+		const availableLines = Math.max(5, terminal.rows - 10)
 		// Each message takes roughly 2-3 lines, so divide by 3 for safety
-		return Math.max(3, Math.floor(availableLines / 3));
-	}, [terminal.rows]);
+		return Math.max(3, Math.floor(availableLines / 3))
+	}, [terminal.rows])
 
 	const loadConversation = useCallback(async () => {
-		setLoading(true);
-		setError("");
+		setLoading(true)
+		setError('')
 
 		try {
 			const history = await apiClient.getConversationHistory(
 				userPhoneNumber,
-				botPhoneNumber,
-			);
-			setMessages(history.messages);
+				botPhoneNumber
+			)
+			setMessages(history.messages)
 		} catch (err) {
 			setError(
-				err instanceof Error ? err.message : "Failed to load conversation",
-			);
+				err instanceof Error ? err.message : 'Failed to load conversation'
+			)
 		} finally {
-			setLoading(false);
+			setLoading(false)
 		}
-	}, [apiClient, userPhoneNumber, botPhoneNumber]);
+	}, [apiClient, userPhoneNumber, botPhoneNumber])
 
 	useEffect(() => {
-		loadConversation();
+		loadConversation()
 
 		const handleWebSocketMessage = (message: {
-			type: string;
-			payload: unknown;
+			type: string
+			payload: unknown
 		}) => {
-			if (message.type === "NEW_MESSAGE") {
-				loadConversation();
-				setIsAgentTyping(false);
-			} else if (message.type === "TYPING_INDICATOR") {
+			if (message.type === 'NEW_MESSAGE') {
+				loadConversation()
+				setIsAgentTyping(false)
+			} else if (message.type === 'TYPING_INDICATOR') {
 				const payload = message.payload as {
-					phoneNumberId: string;
-					messageId: string;
-					isTyping: boolean;
-					timestamp: number;
-				};
+					phoneNumberId: string
+					messageId: string
+					isTyping: boolean
+					timestamp: number
+				}
 				// Show typing indicator when the agent (bot) is typing to the user
 				if (payload.phoneNumberId === botPhoneNumber) {
-					setIsAgentTyping(payload.isTyping);
+					setIsAgentTyping(payload.isTyping)
 				}
 			}
-		};
+		}
 
-		webSocketClient.addMessageListener(handleWebSocketMessage);
+		webSocketClient.addMessageListener(handleWebSocketMessage)
 
 		return () => {
-			webSocketClient.removeMessageListener(handleWebSocketMessage);
-		};
-	}, [loadConversation, botPhoneNumber]);
+			webSocketClient.removeMessageListener(handleWebSocketMessage)
+		}
+	}, [loadConversation, botPhoneNumber])
 
 	useInput((input, key) => {
-		if (mode === "chat") {
+		if (mode === 'chat') {
 			if (key.return && currentMessage.trim()) {
-				void handleSendMessage(); // fire-and-forget
-				return;
+				void handleSendMessage() // fire-and-forget
+				return
 			}
 
-			if (key.ctrl && input === "r") {
-				loadConversation();
+			if (key.ctrl && input === 'r') {
+				loadConversation()
 			}
 
-			if (key.ctrl && input === "n") {
-				onNewConversation();
+			if (key.ctrl && input === 'n') {
+				onNewConversation()
 			}
 
-			if (key.ctrl && input === "t") {
-				void handleTemplateMode();
+			if (key.ctrl && input === 't') {
+				void handleTemplateMode()
 			}
-		} else if (mode === "templates") {
+		} else if (mode === 'templates') {
 			if (key.upArrow && selectedTemplateIndex > 0) {
-				setSelectedTemplateIndex(selectedTemplateIndex - 1);
+				setSelectedTemplateIndex(selectedTemplateIndex - 1)
 			}
 
 			if (key.downArrow && selectedTemplateIndex < templates.length - 1) {
-				setSelectedTemplateIndex(selectedTemplateIndex + 1);
+				setSelectedTemplateIndex(selectedTemplateIndex + 1)
 			}
 
 			if (key.return && templates[selectedTemplateIndex]) {
-				handleSelectTemplate(templates[selectedTemplateIndex]);
+				handleSelectTemplate(templates[selectedTemplateIndex])
 			}
 
 			if (key.escape) {
-				setMode("chat");
+				setMode('chat')
 			}
-		} else if (mode === "template-params") {
+		} else if (mode === 'template-params') {
 			if (key.return && currentParamValue.trim()) {
-				handleSetTemplateParam();
+				handleSetTemplateParam()
 			}
 
 			if (key.escape) {
-				setMode("templates");
+				setMode('templates')
 			}
 
-			if (key.ctrl && input === "s") {
-				void handleSendTemplateMessage();
+			if (key.ctrl && input === 's') {
+				void handleSendTemplateMessage()
 			}
 		}
-	});
+	})
 
 	const handleTemplateMode = async () => {
-		setMode("templates");
-		setTemplatesLoading(true);
+		setMode('templates')
+		setTemplatesLoading(true)
 		try {
-			const fetchedTemplates = await apiClient.getTemplates();
-			setTemplates(fetchedTemplates);
-			setSelectedTemplateIndex(0);
+			const fetchedTemplates = await apiClient.getTemplates()
+			setTemplates(fetchedTemplates)
+			setSelectedTemplateIndex(0)
 		} catch (error) {
-			setError("Failed to load templates");
+			setError('Failed to load templates')
 		} finally {
-			setTemplatesLoading(false);
+			setTemplatesLoading(false)
 		}
-	};
+	}
 
 	const handleSelectTemplate = (template: Template) => {
-		setSelectedTemplate(template);
-		setTemplateParams({});
+		setSelectedTemplate(template)
+		setTemplateParams({})
 
 		if (template.variables && Object.keys(template.variables).length > 0) {
 			// Template has parameters, switch to parameter input mode
-			const firstParamKey = Object.keys(template.variables)[0];
-			setCurrentParamKey(firstParamKey);
-			setCurrentParamValue("");
-			setMode("template-params");
+			const firstParamKey = Object.keys(template.variables)[0]
+			setCurrentParamKey(firstParamKey)
+			setCurrentParamValue('')
+			setMode('template-params')
 		} else {
 			// No parameters needed, send immediately
-			void handleSendTemplateMessage();
+			void handleSendTemplateMessage()
 		}
-	};
+	}
 
 	const handleSetTemplateParam = () => {
 		if (!currentParamKey || !currentParamValue.trim() || !selectedTemplate)
-			return;
+			return
 
 		const newParams = {
 			...templateParams,
 			[currentParamKey]: currentParamValue,
-		};
-		setTemplateParams(newParams);
-		setCurrentParamValue("");
+		}
+		setTemplateParams(newParams)
+		setCurrentParamValue('')
 
 		// Move to next parameter if available
-		const paramKeys = Object.keys(selectedTemplate.variables || {});
-		const currentIndex = paramKeys.indexOf(currentParamKey);
+		const paramKeys = Object.keys(selectedTemplate.variables || {})
+		const currentIndex = paramKeys.indexOf(currentParamKey)
 
 		if (currentIndex < paramKeys.length - 1) {
 			// More parameters to fill
-			setCurrentParamKey(paramKeys[currentIndex + 1]);
+			setCurrentParamKey(paramKeys[currentIndex + 1])
 		} else {
 			// All parameters filled, ready to send
-			setCurrentParamKey("");
+			setCurrentParamKey('')
 		}
-	};
+	}
 
 	const handleSendTemplateMessage = async () => {
-		if (!selectedTemplate) return;
+		if (!selectedTemplate) return
 
-		setStatus("sending");
-		setErrorMessage("");
+		setStatus('sending')
+		setErrorMessage('')
 
 		try {
 			// Convert templateParams to parameter array
 			const paramValues = Object.keys(selectedTemplate.variables || {})
 				.sort()
-				.map((key) => templateParams[key] || "");
+				.map((key) => templateParams[key] || '')
 
 			await apiClient.sendTemplateMessage(
 				userPhoneNumber,
 				botPhoneNumber,
 				selectedTemplate.name,
-				paramValues,
-			);
+				paramValues
+			)
 
-			setStatus("sent");
-			setMode("chat");
-			setSelectedTemplate(null);
-			setTemplateParams({});
+			setStatus('sent')
+			setMode('chat')
+			setSelectedTemplate(null)
+			setTemplateParams({})
 
 			// Reload conversation to show the new message
-			await loadConversation();
+			await loadConversation()
 
 			// Clear status after 2 seconds
 			setTimeout(() => {
-				setStatus("idle");
-			}, 2000);
+				setStatus('idle')
+			}, 2000)
 		} catch (error) {
-			setStatus("error");
+			setStatus('error')
 			setErrorMessage(
 				error instanceof Error
 					? error.message
-					: "Failed to send template message",
-			);
+					: 'Failed to send template message'
+			)
 		}
-	};
+	}
 
 	const handleSendMessage = async () => {
-		if (!currentMessage.trim()) return;
+		if (!currentMessage.trim()) return
 
-		setStatus("sending");
-		setErrorMessage("");
+		setStatus('sending')
+		setErrorMessage('')
 
 		try {
 			await apiClient.sendMessage(
 				userPhoneNumber,
 				botPhoneNumber,
-				currentMessage,
-			);
-			setStatus("sent");
-			setCurrentMessage("");
+				currentMessage
+			)
+			setStatus('sent')
+			setCurrentMessage('')
 
 			// Reload conversation to show the new message
-			await loadConversation();
+			await loadConversation()
 
 			// Clear status after 2 seconds
 			setTimeout(() => {
-				setStatus("idle");
-			}, 2000);
+				setStatus('idle')
+			}, 2000)
 		} catch (error) {
-			setStatus("error");
+			setStatus('error')
 			setErrorMessage(
-				error instanceof Error ? error.message : "Failed to send message",
-			);
+				error instanceof Error ? error.message : 'Failed to send message'
+			)
 		}
-	};
+	}
 
 	const renderMessage = (message: Message) => {
 		// Use local timezone
-		const now = new Date();
-		const msgDate = new Date(message.timestamp);
+		const now = new Date()
+		const msgDate = new Date(message.timestamp)
 		const isToday =
 			msgDate.getDate() === now.getDate() &&
 			msgDate.getMonth() === now.getMonth() &&
-			msgDate.getFullYear() === now.getFullYear();
+			msgDate.getFullYear() === now.getFullYear()
 
 		const timestamp = isToday
-			? format(msgDate, "HH:mm:ss")
-			: format(msgDate, "MM/dd HH:mm");
+			? format(msgDate, 'HH:mm:ss')
+			: format(msgDate, 'MM/dd HH:mm')
 
-		const isOutgoing = message.direction === "sent";
-		const messageText = message.text?.trim() || "(empty)";
+		const isOutgoing = message.direction === 'sent'
+		const messageText = message.text?.trim() || '(empty)'
 
 		// Simplified single-line format for outgoing/incoming
-		const prefix = isOutgoing ? "You" : "Bot";
-		const header = `${timestamp} ${prefix}`;
-		const indentation = "  "; // 2 spaces for indentation
+		const prefix = isOutgoing ? 'You' : 'Bot'
+		const header = `${timestamp} ${prefix}`
+		const indentation = '  ' // 2 spaces for indentation
 
 		// By combining into a single Text component with explicit newlines and indentation,
 		// we give Ink's wrapping algorithm the best chance to work correctly.
 		return (
 			<Box key={message.id} marginBottom={1}>
-				<Text color={isOutgoing ? "cyan" : "green"} wrap="wrap">
+				<Text color={isOutgoing ? 'cyan' : 'green'} wrap="wrap">
 					<Text color="gray" dimColor>
 						{header}
 					</Text>
 					{`\n${indentation}${messageText}`}
 				</Text>
 			</Box>
-		);
-	};
+		)
+	}
 
 	const renderStatusIndicator = () => {
 		switch (status) {
-			case "sending":
-				return <Text color="yellow">Sending...</Text>;
-			case "sent":
-				return <Text color="green">✓ Sent</Text>;
-			case "error":
-				return <Text color="red">✗ {errorMessage}</Text>;
+			case 'sending':
+				return <Text color="yellow">Sending...</Text>
+			case 'sent':
+				return <Text color="green">✓ Sent</Text>
+			case 'error':
+				return <Text color="red">✗ {errorMessage}</Text>
 			default:
-				return null;
+				return null
 		}
-	};
+	}
 
 	const renderTemplateSelector = () => {
 		if (templatesLoading) {
@@ -333,7 +333,7 @@ export const SimplifiedChatInterface: FC<SimplifiedChatInterfaceProps> = ({
 				<Box justifyContent="center" paddingY={2}>
 					<Text color="yellow">Loading templates...</Text>
 				</Box>
-			);
+			)
 		}
 
 		if (templates.length === 0) {
@@ -341,7 +341,7 @@ export const SimplifiedChatInterface: FC<SimplifiedChatInterfaceProps> = ({
 				<Box justifyContent="center" paddingY={2}>
 					<Text color="red">No templates available</Text>
 				</Box>
-			);
+			)
 		}
 
 		return (
@@ -355,12 +355,12 @@ export const SimplifiedChatInterface: FC<SimplifiedChatInterfaceProps> = ({
 				{templates.map((template, index) => (
 					<Box key={`${template.name}_${template.language}`} marginBottom={1}>
 						<Text
-							color={index === selectedTemplateIndex ? "cyan" : "white"}
+							color={index === selectedTemplateIndex ? 'cyan' : 'white'}
 							backgroundColor={
-								index === selectedTemplateIndex ? "blue" : undefined
+								index === selectedTemplateIndex ? 'blue' : undefined
 							}
 						>
-							{index === selectedTemplateIndex ? "▶ " : "  "}
+							{index === selectedTemplateIndex ? '▶ ' : '  '}
 							{template.name} ({template.category})
 						</Text>
 					</Box>
@@ -372,8 +372,8 @@ export const SimplifiedChatInterface: FC<SimplifiedChatInterfaceProps> = ({
 					</Text>
 				</Box>
 			</Box>
-		);
-	};
+		)
+	}
 
 	const renderTemplateParameterInput = () => {
 		if (!selectedTemplate || !currentParamKey) {
@@ -392,7 +392,7 @@ export const SimplifiedChatInterface: FC<SimplifiedChatInterfaceProps> = ({
 						<Text color="yellow">Parameters:</Text>
 						{Object.entries(templateParams).map(([key, value]) => (
 							<Text key={key} color="white">
-								{" "}
+								{' '}
 								{key}: "{value}"
 							</Text>
 						))}
@@ -404,13 +404,13 @@ export const SimplifiedChatInterface: FC<SimplifiedChatInterfaceProps> = ({
 						</Text>
 					</Box>
 				</Box>
-			);
+			)
 		}
 
-		const paramInfo = selectedTemplate.variables?.[currentParamKey];
+		const paramInfo = selectedTemplate.variables?.[currentParamKey]
 		const remainingParams =
 			Object.keys(selectedTemplate.variables || {}).length -
-			Object.keys(templateParams).length;
+			Object.keys(templateParams).length
 
 		return (
 			<Box flexDirection="column">
@@ -450,17 +450,17 @@ export const SimplifiedChatInterface: FC<SimplifiedChatInterfaceProps> = ({
 					</Text>
 				</Box>
 			</Box>
-		);
-	};
+		)
+	}
 
 	return (
 		<Box flexDirection="column" height="100%">
 			{/* Main area */}
 			<Box flexDirection="column" flexGrow={1} paddingX={2} paddingY={1}>
-				{mode === "templates" && renderTemplateSelector()}
-				{mode === "template-params" && renderTemplateParameterInput()}
+				{mode === 'templates' && renderTemplateSelector()}
+				{mode === 'template-params' && renderTemplateParameterInput()}
 
-				{mode === "chat" && (
+				{mode === 'chat' && (
 					<>
 						{loading && (
 							<Box justifyContent="center" paddingY={2}>
@@ -522,7 +522,7 @@ export const SimplifiedChatInterface: FC<SimplifiedChatInterfaceProps> = ({
 									{messages
 										.slice()
 										.sort(
-											(a, b) => b.timestamp.getTime() - a.timestamp.getTime(),
+											(a, b) => b.timestamp.getTime() - a.timestamp.getTime()
 										) // Newest first
 										.slice(0, calculateMaxMessages())
 										.map(renderMessage)}
@@ -542,7 +542,7 @@ export const SimplifiedChatInterface: FC<SimplifiedChatInterfaceProps> = ({
 			</Box>
 
 			{/* Input area at bottom */}
-			{mode === "chat" && (
+			{mode === 'chat' && (
 				<Box
 					flexDirection="column"
 					borderStyle="single"
@@ -552,7 +552,7 @@ export const SimplifiedChatInterface: FC<SimplifiedChatInterfaceProps> = ({
 				>
 					<Box justifyContent="space-between" marginBottom={1}>
 						<Text color="cyan">💬 Send message to bot:</Text>
-						{status !== "idle" && renderStatusIndicator()}
+						{status !== 'idle' && renderStatusIndicator()}
 					</Box>
 
 					<Box marginBottom={1}>
@@ -575,5 +575,5 @@ export const SimplifiedChatInterface: FC<SimplifiedChatInterfaceProps> = ({
 				</Box>
 			)}
 		</Box>
-	);
-};
+	)
+}

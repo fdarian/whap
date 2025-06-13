@@ -1,390 +1,390 @@
-import { describe, test, expect } from "vitest";
-import {
-	validateWhatsAppMessageRequest,
-	validateWhatsAppTypingRequest,
-	validateTemplateData,
-	formatValidationErrorForAPI,
-	type ValidationError,
-} from "./validator.ts";
+import { describe, expect, test } from 'vitest'
 import type {
+	Template,
 	WhatsAppSendMessageRequest,
 	WhatsAppTypingRequest,
-	Template,
-} from "../types/api-types.ts";
+} from '../types/api-types.ts'
+import {
+	type ValidationError,
+	formatValidationErrorForAPI,
+	validateTemplateData,
+	validateWhatsAppMessageRequest,
+	validateWhatsAppTypingRequest,
+} from './validator.ts'
 
-describe("WhatsApp Message Request Validation", () => {
-	test("validates valid text message request", () => {
+describe('WhatsApp Message Request Validation', () => {
+	test('validates valid text message request', () => {
 		const validTextMessage: WhatsAppSendMessageRequest = {
-			messaging_product: "whatsapp",
-			to: "1234567890",
-			type: "text",
+			messaging_product: 'whatsapp',
+			to: '1234567890',
+			type: 'text',
 			text: {
-				body: "Hello, World!",
+				body: 'Hello, World!',
 			},
-		};
+		}
 
-		const result = validateWhatsAppMessageRequest(validTextMessage);
+		const result = validateWhatsAppMessageRequest(validTextMessage)
 
-		expect(result.isValid).toBe(true);
-		expect(result.data).toEqual(validTextMessage);
-		expect(result.errors).toBeUndefined();
-	});
+		expect(result.isValid).toBe(true)
+		expect(result.data).toEqual(validTextMessage)
+		expect(result.errors).toBeUndefined()
+	})
 
-	test("validates valid template message request", () => {
+	test('validates valid template message request', () => {
 		const validTemplateMessage: WhatsAppSendMessageRequest = {
-			messaging_product: "whatsapp",
-			to: "1234567890",
-			type: "template",
+			messaging_product: 'whatsapp',
+			to: '1234567890',
+			type: 'template',
 			template: {
-				name: "welcome_template",
-				language: { code: "en" },
+				name: 'welcome_template',
+				language: { code: 'en' },
 				components: [
 					{
-						type: "body",
+						type: 'body',
 						parameters: [
 							{
-								type: "text",
-								parameter_name: "name",
-								text: "John Doe",
+								type: 'text',
+								parameter_name: 'name',
+								text: 'John Doe',
 							},
 						],
 					},
 				],
 			},
-		};
+		}
 
-		const result = validateWhatsAppMessageRequest(validTemplateMessage);
+		const result = validateWhatsAppMessageRequest(validTemplateMessage)
 
-		expect(result.isValid).toBe(true);
-		expect(result.data).toEqual(validTemplateMessage);
-		expect(result.errors).toBeUndefined();
-	});
+		expect(result.isValid).toBe(true)
+		expect(result.data).toEqual(validTemplateMessage)
+		expect(result.errors).toBeUndefined()
+	})
 
-	test("rejects message with invalid messaging_product", () => {
+	test('rejects message with invalid messaging_product', () => {
 		const invalidMessage = {
-			messaging_product: "invalid",
-			to: "1234567890",
-			type: "text",
-			text: { body: "Hello" },
-		};
+			messaging_product: 'invalid',
+			to: '1234567890',
+			type: 'text',
+			text: { body: 'Hello' },
+		}
 
-		const result = validateWhatsAppMessageRequest(invalidMessage);
+		const result = validateWhatsAppMessageRequest(invalidMessage)
 
-		expect(result.isValid).toBe(false);
-		expect(result.data).toBeUndefined();
-		expect(result.errors).toBeDefined();
-		expect(result.errors?.[0]?.message).toContain("must be equal to constant");
-	});
+		expect(result.isValid).toBe(false)
+		expect(result.data).toBeUndefined()
+		expect(result.errors).toBeDefined()
+		expect(result.errors?.[0]?.message).toContain('must be equal to constant')
+	})
 
-	test("rejects message without required to field", () => {
+	test('rejects message without required to field', () => {
 		const invalidMessage = {
-			messaging_product: "whatsapp",
-			type: "text",
-			text: { body: "Hello" },
-		};
+			messaging_product: 'whatsapp',
+			type: 'text',
+			text: { body: 'Hello' },
+		}
 
-		const result = validateWhatsAppMessageRequest(invalidMessage);
+		const result = validateWhatsAppMessageRequest(invalidMessage)
 
-		expect(result.isValid).toBe(false);
-		expect(result.data).toBeUndefined();
-		expect(result.errors).toBeDefined();
+		expect(result.isValid).toBe(false)
+		expect(result.data).toBeUndefined()
+		expect(result.errors).toBeDefined()
 		expect(
-			result.errors!.some((error) =>
-				error.message.includes("required property"),
-			),
-		).toBe(true);
-	});
+			result.errors?.some((error) =>
+				error.message.includes('required property')
+			)
+		).toBe(true)
+	})
 
-	test("rejects text message without text.body", () => {
+	test('rejects text message without text.body', () => {
 		const invalidMessage = {
-			messaging_product: "whatsapp",
-			to: "1234567890",
-			type: "text",
-		};
+			messaging_product: 'whatsapp',
+			to: '1234567890',
+			type: 'text',
+		}
 
-		const result = validateWhatsAppMessageRequest(invalidMessage);
+		const result = validateWhatsAppMessageRequest(invalidMessage)
 
-		expect(result.isValid).toBe(false);
-		expect(result.data).toBeUndefined();
-		expect(result.errors).toBeDefined();
-	});
+		expect(result.isValid).toBe(false)
+		expect(result.data).toBeUndefined()
+		expect(result.errors).toBeDefined()
+	})
 
-	test("rejects template message without template field", () => {
+	test('rejects template message without template field', () => {
 		const invalidMessage = {
-			messaging_product: "whatsapp",
-			to: "1234567890",
-			type: "template",
-		};
+			messaging_product: 'whatsapp',
+			to: '1234567890',
+			type: 'template',
+		}
 
-		const result = validateWhatsAppMessageRequest(invalidMessage);
+		const result = validateWhatsAppMessageRequest(invalidMessage)
 
-		expect(result.isValid).toBe(false);
-		expect(result.data).toBeUndefined();
-		expect(result.errors).toBeDefined();
-	});
+		expect(result.isValid).toBe(false)
+		expect(result.data).toBeUndefined()
+		expect(result.errors).toBeDefined()
+	})
 
-	test("rejects message with invalid type", () => {
+	test('rejects message with invalid type', () => {
 		const invalidMessage = {
-			messaging_product: "whatsapp",
-			to: "1234567890",
-			type: "invalid_type",
-		};
+			messaging_product: 'whatsapp',
+			to: '1234567890',
+			type: 'invalid_type',
+		}
 
-		const result = validateWhatsAppMessageRequest(invalidMessage);
+		const result = validateWhatsAppMessageRequest(invalidMessage)
 
-		expect(result.isValid).toBe(false);
-		expect(result.data).toBeUndefined();
-		expect(result.errors).toBeDefined();
-	});
-});
+		expect(result.isValid).toBe(false)
+		expect(result.data).toBeUndefined()
+		expect(result.errors).toBeDefined()
+	})
+})
 
-describe("WhatsApp Typing Request Validation", () => {
-	test("validates valid typing indicator request", () => {
+describe('WhatsApp Typing Request Validation', () => {
+	test('validates valid typing indicator request', () => {
 		const validTypingRequest: WhatsAppTypingRequest = {
-			messaging_product: "whatsapp",
-			status: "read",
-			message_id: "msg_123456",
+			messaging_product: 'whatsapp',
+			status: 'read',
+			message_id: 'msg_123456',
 			typing_indicator: {
-				type: "text",
+				type: 'text',
 			},
-		};
+		}
 
-		const result = validateWhatsAppTypingRequest(validTypingRequest);
+		const result = validateWhatsAppTypingRequest(validTypingRequest)
 
-		expect(result.isValid).toBe(true);
-		expect(result.data).toEqual(validTypingRequest);
-		expect(result.errors).toBeUndefined();
-	});
+		expect(result.isValid).toBe(true)
+		expect(result.data).toEqual(validTypingRequest)
+		expect(result.errors).toBeUndefined()
+	})
 
-	test("rejects typing request with invalid status", () => {
+	test('rejects typing request with invalid status', () => {
 		const invalidRequest = {
-			messaging_product: "whatsapp",
-			status: "invalid_status",
-			message_id: "msg_123456",
-			typing_indicator: { type: "text" },
-		};
+			messaging_product: 'whatsapp',
+			status: 'invalid_status',
+			message_id: 'msg_123456',
+			typing_indicator: { type: 'text' },
+		}
 
-		const result = validateWhatsAppTypingRequest(invalidRequest);
+		const result = validateWhatsAppTypingRequest(invalidRequest)
 
-		expect(result.isValid).toBe(false);
-		expect(result.data).toBeUndefined();
-		expect(result.errors).toBeDefined();
-	});
+		expect(result.isValid).toBe(false)
+		expect(result.data).toBeUndefined()
+		expect(result.errors).toBeDefined()
+	})
 
-	test("rejects typing request without message_id", () => {
+	test('rejects typing request without message_id', () => {
 		const invalidRequest = {
-			messaging_product: "whatsapp",
-			status: "read",
-			typing_indicator: { type: "text" },
-		};
+			messaging_product: 'whatsapp',
+			status: 'read',
+			typing_indicator: { type: 'text' },
+		}
 
-		const result = validateWhatsAppTypingRequest(invalidRequest);
+		const result = validateWhatsAppTypingRequest(invalidRequest)
 
-		expect(result.isValid).toBe(false);
-		expect(result.data).toBeUndefined();
-		expect(result.errors).toBeDefined();
-	});
+		expect(result.isValid).toBe(false)
+		expect(result.data).toBeUndefined()
+		expect(result.errors).toBeDefined()
+	})
 
-	test("rejects typing request without typing_indicator", () => {
+	test('rejects typing request without typing_indicator', () => {
 		const invalidRequest = {
-			messaging_product: "whatsapp",
-			status: "read",
-			message_id: "msg_123456",
-		};
+			messaging_product: 'whatsapp',
+			status: 'read',
+			message_id: 'msg_123456',
+		}
 
-		const result = validateWhatsAppTypingRequest(invalidRequest);
+		const result = validateWhatsAppTypingRequest(invalidRequest)
 
-		expect(result.isValid).toBe(false);
-		expect(result.data).toBeUndefined();
-		expect(result.errors).toBeDefined();
-	});
-});
+		expect(result.isValid).toBe(false)
+		expect(result.data).toBeUndefined()
+		expect(result.errors).toBeDefined()
+	})
+})
 
-describe("Template Validation", () => {
-	test("validates valid template", () => {
+describe('Template Validation', () => {
+	test('validates valid template', () => {
 		const validTemplate: Template = {
-			name: "welcome_template",
-			language: "en",
-			category: "MARKETING",
+			name: 'welcome_template',
+			language: 'en',
+			category: 'MARKETING',
 			components: [
 				{
-					type: "HEADER",
-					format: "TEXT",
-					text: "Welcome!",
+					type: 'HEADER',
+					format: 'TEXT',
+					text: 'Welcome!',
 				},
 				{
-					type: "BODY",
-					text: "Welcome to our service, {{name}}!",
+					type: 'BODY',
+					text: 'Welcome to our service, {{name}}!',
 				},
 				{
-					type: "BUTTONS",
+					type: 'BUTTONS',
 					buttons: [
 						{
-							type: "QUICK_REPLY",
-							text: "Get Started",
+							type: 'QUICK_REPLY',
+							text: 'Get Started',
 						},
 						{
-							type: "URL",
-							text: "Visit Website",
-							url: "https://example.com",
+							type: 'URL',
+							text: 'Visit Website',
+							url: 'https://example.com',
 						},
 					],
 				},
 			],
 			variables: {
 				name: {
-					description: "User name",
-					example: "John Doe",
+					description: 'User name',
+					example: 'John Doe',
 				},
 			},
-		};
+		}
 
-		const result = validateTemplateData(validTemplate);
+		const result = validateTemplateData(validTemplate)
 
-		expect(result.isValid).toBe(true);
-		expect(result.data).toEqual(validTemplate);
-		expect(result.errors).toBeUndefined();
-	});
+		expect(result.isValid).toBe(true)
+		expect(result.data).toEqual(validTemplate)
+		expect(result.errors).toBeUndefined()
+	})
 
-	test("validates minimal template without optional fields", () => {
+	test('validates minimal template without optional fields', () => {
 		const minimalTemplate: Template = {
-			name: "simple_template",
-			language: "en",
-			category: "UTILITY",
+			name: 'simple_template',
+			language: 'en',
+			category: 'UTILITY',
 			components: [
 				{
-					type: "BODY",
-					text: "Simple message",
+					type: 'BODY',
+					text: 'Simple message',
 				},
 			],
-		};
+		}
 
-		const result = validateTemplateData(minimalTemplate);
+		const result = validateTemplateData(minimalTemplate)
 
-		expect(result.isValid).toBe(true);
-		expect(result.data).toEqual(minimalTemplate);
-		expect(result.errors).toBeUndefined();
-	});
+		expect(result.isValid).toBe(true)
+		expect(result.data).toEqual(minimalTemplate)
+		expect(result.errors).toBeUndefined()
+	})
 
-	test("rejects template without required name", () => {
+	test('rejects template without required name', () => {
 		const invalidTemplate = {
-			language: "en",
-			category: "UTILITY",
-			components: [{ type: "BODY", text: "Message" }],
-		};
+			language: 'en',
+			category: 'UTILITY',
+			components: [{ type: 'BODY', text: 'Message' }],
+		}
 
-		const result = validateTemplateData(invalidTemplate);
+		const result = validateTemplateData(invalidTemplate)
 
-		expect(result.isValid).toBe(false);
-		expect(result.data).toBeUndefined();
-		expect(result.errors).toBeDefined();
+		expect(result.isValid).toBe(false)
+		expect(result.data).toBeUndefined()
+		expect(result.errors).toBeDefined()
 		expect(
-			result.errors!.some((error) =>
-				error.message.includes("required property"),
-			),
-		).toBe(true);
-	});
+			result.errors?.some((error) =>
+				error.message.includes('required property')
+			)
+		).toBe(true)
+	})
 
-	test("rejects template with invalid category", () => {
+	test('rejects template with invalid category', () => {
 		const invalidTemplate = {
-			name: "test_template",
-			language: "en",
-			category: "INVALID_CATEGORY",
-			components: [{ type: "BODY", text: "Message" }],
-		};
+			name: 'test_template',
+			language: 'en',
+			category: 'INVALID_CATEGORY',
+			components: [{ type: 'BODY', text: 'Message' }],
+		}
 
-		const result = validateTemplateData(invalidTemplate);
+		const result = validateTemplateData(invalidTemplate)
 
-		expect(result.isValid).toBe(false);
-		expect(result.data).toBeUndefined();
-		expect(result.errors).toBeDefined();
-	});
+		expect(result.isValid).toBe(false)
+		expect(result.data).toBeUndefined()
+		expect(result.errors).toBeDefined()
+	})
 
-	test("rejects template with invalid component type", () => {
+	test('rejects template with invalid component type', () => {
 		const invalidTemplate = {
-			name: "test_template",
-			language: "en",
-			category: "UTILITY",
-			components: [{ type: "INVALID_TYPE", text: "Message" }],
-		};
+			name: 'test_template',
+			language: 'en',
+			category: 'UTILITY',
+			components: [{ type: 'INVALID_TYPE', text: 'Message' }],
+		}
 
-		const result = validateTemplateData(invalidTemplate);
+		const result = validateTemplateData(invalidTemplate)
 
-		expect(result.isValid).toBe(false);
-		expect(result.data).toBeUndefined();
-		expect(result.errors).toBeDefined();
-	});
+		expect(result.isValid).toBe(false)
+		expect(result.data).toBeUndefined()
+		expect(result.errors).toBeDefined()
+	})
 
-	test("rejects template with invalid button type", () => {
+	test('rejects template with invalid button type', () => {
 		const invalidTemplate = {
-			name: "test_template",
-			language: "en",
-			category: "UTILITY",
+			name: 'test_template',
+			language: 'en',
+			category: 'UTILITY',
 			components: [
 				{
-					type: "BUTTONS",
+					type: 'BUTTONS',
 					buttons: [
 						{
-							type: "INVALID_BUTTON_TYPE",
-							text: "Button",
+							type: 'INVALID_BUTTON_TYPE',
+							text: 'Button',
 						},
 					],
 				},
 			],
-		};
+		}
 
-		const result = validateTemplateData(invalidTemplate);
+		const result = validateTemplateData(invalidTemplate)
 
-		expect(result.isValid).toBe(false);
-		expect(result.data).toBeUndefined();
-		expect(result.errors).toBeDefined();
-	});
-});
+		expect(result.isValid).toBe(false)
+		expect(result.data).toBeUndefined()
+		expect(result.errors).toBeDefined()
+	})
+})
 
-describe("Error Formatting", () => {
-	test("formats single validation error", () => {
+describe('Error Formatting', () => {
+	test('formats single validation error', () => {
 		const errors: ValidationError[] = [
 			{
-				path: "/messaging_product",
-				message: "must be equal to constant",
-				value: "invalid",
+				path: '/messaging_product',
+				message: 'must be equal to constant',
+				value: 'invalid',
 			},
-		];
+		]
 
-		const result = formatValidationErrorForAPI(errors);
+		const result = formatValidationErrorForAPI(errors)
 
-		expect(result).toBe("/messaging_product: must be equal to constant");
-	});
+		expect(result).toBe('/messaging_product: must be equal to constant')
+	})
 
-	test("formats single root error", () => {
+	test('formats single root error', () => {
 		const errors: ValidationError[] = [
 			{
-				path: "root",
-				message: "Invalid request format",
+				path: 'root',
+				message: 'Invalid request format',
 			},
-		];
+		]
 
-		const result = formatValidationErrorForAPI(errors);
+		const result = formatValidationErrorForAPI(errors)
 
-		expect(result).toBe("Invalid request format");
-	});
+		expect(result).toBe('Invalid request format')
+	})
 
-	test("formats multiple validation errors", () => {
+	test('formats multiple validation errors', () => {
 		const errors: ValidationError[] = [
 			{
-				path: "/messaging_product",
-				message: "must be equal to constant",
+				path: '/messaging_product',
+				message: 'must be equal to constant',
 			},
 			{
-				path: "/to",
-				message: "must have required property",
+				path: '/to',
+				message: 'must have required property',
 			},
-		];
+		]
 
-		const result = formatValidationErrorForAPI(errors);
+		const result = formatValidationErrorForAPI(errors)
 
 		expect(result).toBe(
-			"Multiple validation errors: /messaging_product: must be equal to constant, /to: must have required property",
-		);
-	});
-});
+			'Multiple validation errors: /messaging_product: must be equal to constant, /to: must have required property'
+		)
+	})
+})

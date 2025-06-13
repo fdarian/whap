@@ -42,9 +42,9 @@ function parseWebhookMappings(): Map<string, string> {
 				process.exit(1)
 			}
 
-if (mappings.has(phone)) {
-    throw new Error(`Duplicate phone number mapping: ${phone}`)
-}
+			if (mappings.has(phone)) {
+				throw new Error(`Duplicate phone number mapping: ${phone}`)
+			}
 
 			mappings.set(phone, url)
 			console.log(`🔗 Configured webhook URL for phone ${phone}: ${url}`)

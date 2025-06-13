@@ -1,30 +1,30 @@
 {
-  "name": "notification",
-  "language": "en",
-  "category": "AUTHENTICATION",
-  "components": [
-    {
-      "type": "HEADER",
-      "format": "TEXT",
-      "text": "Security Alert"
-    },
-    {
-      "type": "BODY",
-      "text": "We detected a login attempt from {{1}} at {{2}}. If this was you, no action is needed."
-    },
-    {
-      "type": "FOOTER",
-      "text": "Stay secure with automated alerts"
-    }
-  ],
-  "variables": {
-    "1": {
-      "description": "Location or device",
-      "example": "New York, iPhone"
-    },
-    "2": {
-      "description": "Timestamp",
-      "example": "2024-01-15 14:30"
-    }
-  }
+	"name": "notification",
+	"language": "en",
+	"category": "AUTHENTICATION",
+	"components": [
+		{
+			"type": "HEADER",
+			"format": "TEXT",
+			"text": "Security Alert"
+		},
+		{
+			"type": "BODY",
+			"text": "We detected a login attempt from {{1}} at {{2}}. If this was you, no action is needed."
+		},
+		{
+			"type": "FOOTER",
+			"text": "Stay secure with automated alerts"
+		}
+	],
+	"variables": {
+		"1": {
+			"description": "Location or device",
+			"example": "New York, iPhone"
+		},
+		"2": {
+			"description": "Timestamp",
+			"example": "2024-01-15 14:30"
+		}
+	}
 }
