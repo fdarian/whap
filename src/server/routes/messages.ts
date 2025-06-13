@@ -2,6 +2,7 @@ import { Hono } from 'hono'
 import { validator } from 'hono/validator'
 import { getWebhookUrl } from '../config.ts'
 import { mockStore } from '../store/memory-store.ts'
+import type { StoredMessage } from '../store/memory-store.ts'
 import { templateStore } from '../store/template-store.ts'
 import type { Template } from '../store/template-store.ts'
 import type {
@@ -111,15 +112,47 @@ async function sendWebhook(
 	}
 }
 
-// Auto-send delivery status webhook
+/** Enhanced delivery status webhook supporting template-specific data */
 function sendDeliveryStatusWebhook(
 	messageId: string,
 	phoneNumberId: string,
 	to: string,
-	status: 'sent' | 'delivered' | 'read'
+	status: 'sent' | 'delivered' | 'read' | 'failed',
+	templateData?: {
+		name: string
+		language: string
+		category?: 'MARKETING' | 'UTILITY' | 'AUTHENTICATION'
+		error?: {
+			code: string
+			title: string
+			message: string
+			details?: string
+		}
+	}
 ): void {
 	const webhookUrl = getWebhookUrl(phoneNumberId)
 	if (!webhookUrl) return
+
+	const baseStatus = {
+		id: messageId,
+		status,
+		timestamp: Math.floor(Date.now() / 1000).toString(),
+		recipient_id: to,
+		conversation: {
+			id: `conversation_${messageId}`,
+			expiration_timestamp: Math.floor(Date.now() / 1000 + 86400).toString(), // 24 hours
+			origin: {
+				type: 'business_initiated',
+			},
+		},
+		pricing: {
+			category:
+				templateData?.category === 'AUTHENTICATION'
+					? 'authentication'
+					: 'utility',
+			pricing_model: 'CBP',
+		},
+	}
 
 	const payload: WebhookPayload = {
 		object: 'whatsapp_business_account',
@@ -134,14 +167,26 @@ function sendDeliveryStatusWebhook(
 								display_phone_number: phoneNumberId,
 								phone_number_id: phoneNumberId,
 							},
-							statuses: [
-								{
-									id: messageId,
-									status,
-									timestamp: Math.floor(Date.now() / 1000).toString(),
-									recipient_id: to,
-								},
-							],
+							// Use template_statuses for template messages, statuses for regular messages
+							...(templateData
+								? {
+										template_statuses: [
+											{
+												...baseStatus,
+												template: {
+													name: templateData.name,
+													language: templateData.language,
+													category: templateData.category || 'UTILITY',
+												},
+												...(templateData.error && {
+													error: templateData.error,
+												}),
+											},
+										],
+									}
+								: {
+										statuses: [baseStatus],
+									}),
 						},
 						field: 'messages',
 					},
@@ -149,6 +194,11 @@ function sendDeliveryStatusWebhook(
 			},
 		],
 	}
+
+	const messageType = templateData ? 'template' : 'text'
+	console.log(
+		`📤 Sending ${status} webhook for ${messageType} message ${messageId}`
+	)
 
 	sendWebhook(webhookUrl, payload).catch((error) => {
 		console.error(`❌ Delivery status webhook failed: ${error.message}`)
@@ -249,7 +299,7 @@ messagesRouter.post(
 		const messageBody = body as WhatsAppSendMessageRequest
 
 		// Process template if present
-		let processedContent = {
+		let processedContent: StoredMessage['content'] = {
 			...(messageBody.text && { text: messageBody.text }),
 			...(messageBody.template && { template: messageBody.template }),
 		}
@@ -279,8 +329,9 @@ messagesRouter.post(
 
 			// Store the processed template in the content
 			processedContent = {
-				template: messageBody.template,
-				processedTemplate: templateProcessingResult.processedTemplate,
+				...processedContent,
+				processedTemplate:
+					templateProcessingResult.processedTemplate || undefined,
 			}
 
 			console.log(
@@ -302,6 +353,15 @@ messagesRouter.post(
 			payload: storedMessage,
 		})
 
+		// Prepare template data for webhooks if it's a template message
+		const templateWebhookData = messageBody.template
+			? {
+					name: messageBody.template.name,
+					language: messageBody.template.language.code,
+					category: 'UTILITY' as const, // Default category - could be enhanced to detect from template
+				}
+			: undefined
+
 		// Simulate webhook for delivery status (sent -> delivered -> read)
 		setTimeout(
 			() =>
@@ -309,7 +369,8 @@ messagesRouter.post(
 					storedMessage.id,
 					phoneNumberId,
 					messageBody.to,
-					'sent'
+					'sent',
+					templateWebhookData
 				),
 			1000
 		)
@@ -320,7 +381,8 @@ messagesRouter.post(
 				storedMessage.id,
 				phoneNumberId,
 				messageBody.to,
-				'delivered'
+				'delivered',
+				templateWebhookData
 			)
 		}, 2000)
 
@@ -330,7 +392,8 @@ messagesRouter.post(
 				storedMessage.id,
 				phoneNumberId,
 				messageBody.to,
-				'read'
+				'read',
+				templateWebhookData
 			)
 		}, 3000)
 
