@@ -12,11 +12,12 @@ vi.mock("node:fs/promises", () => ({
 	rm: vi.fn(),
 }));
 
-// Mock chokidar for file watching
+// Mock chokidar for file watching with proper close method
 vi.mock("chokidar", () => ({
 	default: {
 		watch: vi.fn(() => ({
 			on: vi.fn().mockReturnThis(),
+			close: vi.fn().mockResolvedValue(undefined),
 		})),
 	},
 }));
@@ -76,7 +77,7 @@ describe("TemplateStore", () => {
 			await templateStore.initialize();
 
 			expect(readdir).toHaveBeenCalledWith(
-				expect.stringContaining(testTemplatesDir),
+				expect.stringMatching(/test-templates$/),
 			);
 			expect(readFile).toHaveBeenCalledTimes(2); // Only JSON files
 		});
@@ -240,13 +241,13 @@ describe("TemplateStore", () => {
 			expect(stats.templatesByCategory.AUTHENTICATION).toBe(1);
 			expect(stats.templatesByCategory.MARKETING).toBe(0);
 			expect(stats.isWatching).toBe(true);
-			expect(stats.templatesDir).toContain(testTemplatesDir);
+			expect(stats.templatesDir).toMatch(/test-templates$/);
 			expect(stats.templateKeys).toHaveLength(2);
 		});
 	});
 
 	describe("memory management", () => {
-		test("should clear templates on cleanup", async () => {
+		test("should clean up file watcher on cleanup", async () => {
 			const mockTemplateContent = JSON.stringify(sampleTemplate);
 			vi.mocked(readdir).mockResolvedValue(["test.json"]);
 			vi.mocked(readFile).mockResolvedValue(mockTemplateContent);
