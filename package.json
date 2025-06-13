@@ -35,6 +35,7 @@
 		"@types/ws": "^8.18.1",
 		"lefthook": "^1.11.13",
 		"@vitest/ui": "^3.2.3",
+		"lefthook": "^1.11.13",
 		"tsx": "^4.0.0",
 		"typescript": "^5.0.0",
 		"typescript-json-schema": "^0.65.1",
