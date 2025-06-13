@@ -1,6 +1,7 @@
 import chokidar from "chokidar";
 import { readFile, readdir } from "node:fs/promises";
 import { join } from "node:path";
+import { validateTemplateData } from "../utils/validator.ts";
 
 /** Template structure based on WhatsApp Business API format */
 export interface Template {
@@ -134,14 +135,21 @@ export class TemplateStore {
 	private async loadTemplate(filePath: string): Promise<void> {
 		try {
 			const content = await readFile(filePath, "utf-8");
-			const template: Template = JSON.parse(content);
+			const templateData = JSON.parse(content);
 
-			// Validate template structure
-			if (!template.name || !template.language || !template.components) {
-				console.error(`❌ Invalid template structure in ${filePath}`);
+			// Validate template structure using JSON schema
+			const validationResult = validateTemplateData(templateData);
+			if (!validationResult.isValid) {
+				console.error(`❌ Invalid template structure in ${filePath}:`);
+				if (validationResult.errors) {
+					for (const error of validationResult.errors) {
+						console.error(`  - ${error.path}: ${error.message}`);
+					}
+				}
 				return;
 			}
 
+			const template = validationResult.data as Template;
 			const templateKey = `${template.name}_${template.language}`;
 			this.templates.set(templateKey, template);
 
