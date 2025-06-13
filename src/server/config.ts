@@ -43,7 +43,8 @@ function parseWebhookMappings(): Map<string, string> {
 			}
 
 			if (mappings.has(phone)) {
-				throw new Error(`Duplicate phone number mapping: ${phone}`)
+				console.error(`❌ Duplicate phone number mapping: ${phone}`)
+				process.exit(1)
 			}
 
 			mappings.set(phone, url)
@@ -124,5 +125,11 @@ export function getAllWebhookMappings(): Array<{ phone: string; url: string }> {
  */
 export function setWebhookUrl(phoneNumber: string, url: string): void {
 	const config = getWebhookConfig()
+	// Validate URL format (aligns with parseWebhookMappings)
+	try {
+		new URL(url)
+	} catch {
+		throw new Error(`Invalid URL format passed to setWebhookUrl: ${url}`)
+	}
 	config.mappings.set(phoneNumber, url)
 }
