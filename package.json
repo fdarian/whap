@@ -6,7 +6,7 @@
 		"start:server": "tsx src/server/server.ts",
 		"start:cli": "tsx src/index.tsx",
 		"dev:server": "tsx --watch src/server/server.ts",
-		"test": "vitest",
+		"test": "vitest run",
 		"test:watch": "vitest --watch",
 		"test:ui": "vitest --ui"
 	},
