@@ -205,6 +205,73 @@ function sendDeliveryStatusWebhook(
 	})
 }
 
+/** Send template status update webhook for approval/rejection events */
+function sendTemplateStatusWebhook(
+	phoneNumberId: string,
+	templateData: {
+		id: string
+		name: string
+		language: string
+		category: 'MARKETING' | 'UTILITY' | 'AUTHENTICATION'
+		event: 'PENDING' | 'APPROVED' | 'REJECTED' | 'PAUSED' | 'DISABLED'
+		reason?: string
+		status_details?: string
+		errors?: Array<{
+			code: string
+			title: string
+			message: string
+			error_data?: {
+				component_index?: number
+				button_position?: number
+				details?: string
+			}
+		}>
+	}
+): void {
+	const webhookUrl = getWebhookUrl(phoneNumberId)
+	if (!webhookUrl) return
+
+	const payload: WebhookPayload = {
+		object: 'whatsapp_business_account',
+		entry: [
+			{
+				id: phoneNumberId,
+				changes: [
+					{
+						value: {
+							messaging_product: 'whatsapp',
+							metadata: {
+								display_phone_number: phoneNumberId,
+								phone_number_id: phoneNumberId,
+							},
+							event: templateData.event,
+							message_template_id: templateData.id,
+							message_template_name: templateData.name,
+							message_template_language: templateData.language,
+							category: templateData.category,
+							timestamp: Math.floor(Date.now() / 1000).toString(),
+							...(templateData.reason && { reason: templateData.reason }),
+							...(templateData.status_details && {
+								status_details: templateData.status_details,
+							}),
+							...(templateData.errors && { errors: templateData.errors }),
+						},
+						field: 'message_template_status_update',
+					},
+				],
+			},
+		],
+	}
+
+	console.log(
+		`📋 Sending template ${templateData.event} webhook for template ${templateData.name}`
+	)
+
+	sendWebhook(webhookUrl, payload).catch((error) => {
+		console.error(`❌ Template status webhook failed: ${error.message}`)
+	})
+}
+
 /** Check if request is a typing indicator using JSON schema validation */
 function isTypingIndicatorRequest(
 	body: unknown
@@ -362,6 +429,92 @@ messagesRouter.post(
 				}
 			: undefined
 
+		// Prepare response early for potential early returns
+		const response: WhatsAppSendMessageResponse = {
+			messaging_product: 'whatsapp',
+			contacts: [{ input: messageBody.to, wa_id: messageBody.to }],
+			messages: [
+				{
+					id: storedMessage.id,
+				},
+			],
+		}
+
+		// Simulate template approval/rejection process for new templates
+		if (messageBody.template) {
+			const template = messageBody.template // Extract for type safety
+			// Simulate template approval process with random outcomes for demonstration
+			const shouldApprove = Math.random() > 0.1 // 90% approval rate
+			const shouldFail = Math.random() > 0.95 // 5% delivery failure rate
+
+			// Simulate template approval workflow
+			setTimeout(() => {
+				if (shouldApprove) {
+					sendTemplateStatusWebhook(phoneNumberId, {
+						id: `template_${Date.now()}`,
+						name: template.name,
+						language: template.language.code,
+						category: 'UTILITY',
+						event: 'APPROVED',
+						status_details: 'Template approved and ready for use',
+					})
+				} else {
+					sendTemplateStatusWebhook(phoneNumberId, {
+						id: `template_${Date.now()}`,
+						name: template.name,
+						language: template.language.code,
+						category: 'UTILITY',
+						event: 'REJECTED',
+						reason: 'POLICY_VIOLATION',
+						status_details: 'Template rejected due to policy compliance issues',
+						errors: [
+							{
+								code: 'INVALID_CONTENT',
+								title: 'Content Policy Violation',
+								message:
+									'Template content does not comply with WhatsApp policies',
+								error_data: {
+									details:
+										'Please review template content for promotional language',
+								},
+							},
+						],
+					})
+				}
+			}, 500) // Approval happens before delivery
+
+			// Simulate delivery failure for templates with policy issues
+			if (shouldFail) {
+				setTimeout(() => {
+					mockStore.updateMessageStatus(storedMessage.id, 'sent')
+					if (templateWebhookData) {
+						sendDeliveryStatusWebhook(
+							storedMessage.id,
+							phoneNumberId,
+							messageBody.to,
+							'failed',
+							{
+								name: templateWebhookData.name,
+								language: templateWebhookData.language,
+								category: templateWebhookData.category,
+								error: {
+									code: 'TEMPLATE_REJECTED',
+									title: 'Template Message Failed',
+									message:
+										'Message could not be delivered due to template policy violation',
+									details:
+										'Template has been paused due to low acceptance rate',
+								},
+							}
+						)
+					}
+				}, 1500)
+
+				// Skip normal delivery flow for failed messages
+				return c.json(response)
+			}
+		}
+
 		// Simulate webhook for delivery status (sent -> delivered -> read)
 		setTimeout(
 			() =>
@@ -397,16 +550,7 @@ messagesRouter.post(
 			)
 		}, 3000)
 
-		// Simulate API response
-		const response: WhatsAppSendMessageResponse = {
-			messaging_product: 'whatsapp',
-			contacts: [{ input: messageBody.to, wa_id: messageBody.to }],
-			messages: [
-				{
-					id: storedMessage.id,
-				},
-			],
-		}
+		// Response was already prepared above
 
 		return c.json(response)
 	}
