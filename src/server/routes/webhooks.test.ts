@@ -10,7 +10,7 @@ import {
 	test,
 	vi,
 } from 'vitest'
-import { getWebhookUrl } from '../config.ts'
+import { getWebhookUrl, setWebhookUrl } from '../config.ts'
 import type {
 	SimulateMessageParams,
 	WebhookPayload,
@@ -106,6 +106,7 @@ describe('Webhooks API Integration Tests', () => {
 				to: testPhoneId,
 				message: {
 					id: 'msg_test_123',
+					type: 'text',
 					timestamp: '1234567890',
 					text: {
 						body: 'Hello from test!',
@@ -143,9 +144,17 @@ describe('Webhooks API Integration Tests', () => {
 			const change = webhook.entry[0].changes[0]
 			expect(change.field).toBe('messages')
 			expect(change.value.messaging_product).toBe('whatsapp')
-			expect(change.value.messages).toHaveLength(1)
+			const valueWithMessages = change.value as {
+				messages: Array<{
+					from: string
+					id: string
+					type: string
+					text: { body: string }
+				}>
+			}
+			expect(valueWithMessages.messages).toHaveLength(1)
 
-			const message = change.value.messages[0]
+			const message = valueWithMessages.messages[0]
 			expect(message.from).toBe(simulateParams.from)
 			expect(message.id).toBe(simulateParams.message.id)
 			expect(message.type).toBe('text')
@@ -157,6 +166,7 @@ describe('Webhooks API Integration Tests', () => {
 				to: testPhoneId,
 				message: {
 					id: 'msg_test_123',
+					type: 'text',
 					timestamp: '1234567890',
 					text: { body: 'Test message' },
 				},
@@ -182,6 +192,7 @@ describe('Webhooks API Integration Tests', () => {
 				from: '1234567890',
 				message: {
 					id: 'msg_test_123',
+					type: 'text',
 					timestamp: '1234567890',
 					text: { body: 'Test message' },
 				},
@@ -208,6 +219,7 @@ describe('Webhooks API Integration Tests', () => {
 				to: testPhoneId,
 				message: {
 					id: 'msg_test_123',
+					type: 'text',
 					timestamp: '1234567890',
 					text: {}, // Missing body
 				},
@@ -235,6 +247,7 @@ describe('Webhooks API Integration Tests', () => {
 				to: unconfiguredPhoneId,
 				message: {
 					id: 'msg_test_123',
+					type: 'text',
 					timestamp: '1234567890',
 					text: { body: 'Test message' },
 				},
@@ -302,6 +315,7 @@ describe('Webhooks API Integration Tests', () => {
 				to: testPhoneId,
 				message: {
 					id: 'msg_test_123',
+					type: 'text',
 					timestamp: '1234567890',
 					text: { body: 'Test message' },
 				},

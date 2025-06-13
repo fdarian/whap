@@ -117,3 +117,12 @@ export function getAllWebhookMappings(): Array<{ phone: string; url: string }> {
 		url,
 	}))
 }
+
+/**
+ * Set or update the webhook URL mapping for a given phone number.
+ * This utility is primarily used in test suites to override webhook targets at runtime.
+ */
+export function setWebhookUrl(phoneNumber: string, url: string): void {
+	const config = getWebhookConfig()
+	config.mappings.set(phoneNumber, url)
+}

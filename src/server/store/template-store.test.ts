@@ -70,7 +70,7 @@ describe('TemplateStore', () => {
 			const mockFiles = ['template1.json', 'template2.json', 'readme.txt']
 			const mockTemplateContent = JSON.stringify(sampleTemplate)
 
-			vi.mocked(readdir).mockResolvedValue(mockFiles)
+			vi.mocked(readdir).mockResolvedValue(mockFiles as any)
 			vi.mocked(readFile).mockResolvedValue(mockTemplateContent)
 
 			await templateStore.initialize()
@@ -91,7 +91,7 @@ describe('TemplateStore', () => {
 	describe('template storage and retrieval', () => {
 		test('should store and retrieve template correctly', async () => {
 			const mockTemplateContent = JSON.stringify(sampleTemplate)
-			vi.mocked(readdir).mockResolvedValue(['test.json'])
+			vi.mocked(readdir).mockResolvedValue(['test.json'] as any)
 			vi.mocked(readFile).mockResolvedValue(mockTemplateContent)
 
 			await templateStore.initialize()
@@ -107,7 +107,7 @@ describe('TemplateStore', () => {
 
 		test('should get all templates', async () => {
 			const mockTemplateContent = JSON.stringify(sampleTemplate)
-			vi.mocked(readdir).mockResolvedValue(['test.json'])
+			vi.mocked(readdir).mockResolvedValue(['test.json'] as any)
 			vi.mocked(readFile).mockResolvedValue(mockTemplateContent)
 
 			await templateStore.initialize()
@@ -129,7 +129,7 @@ describe('TemplateStore', () => {
 				category: 'AUTHENTICATION' as const,
 			}
 
-			vi.mocked(readdir).mockResolvedValue(['utility.json', 'auth.json'])
+			vi.mocked(readdir).mockResolvedValue(['utility.json', 'auth.json'] as any)
 			vi.mocked(readFile)
 				.mockResolvedValueOnce(JSON.stringify(utilityTemplate))
 				.mockResolvedValueOnce(JSON.stringify(authTemplate))
@@ -150,7 +150,10 @@ describe('TemplateStore', () => {
 			const template1 = { ...sampleTemplate, name: 'template1' }
 			const template2 = { ...sampleTemplate, name: 'template2' }
 
-			vi.mocked(readdir).mockResolvedValue(['template1.json', 'template2.json'])
+			vi.mocked(readdir).mockResolvedValue([
+				'template1.json',
+				'template2.json',
+			] as any)
 			vi.mocked(readFile)
 				.mockResolvedValueOnce(JSON.stringify(template1))
 				.mockResolvedValueOnce(JSON.stringify(template2))
@@ -169,7 +172,7 @@ describe('TemplateStore', () => {
 				// Missing required fields
 			}
 
-			vi.mocked(readdir).mockResolvedValue(['invalid.json'])
+			vi.mocked(readdir).mockResolvedValue(['invalid.json'] as any)
 			vi.mocked(readFile).mockResolvedValue(JSON.stringify(invalidTemplate))
 
 			await templateStore.initialize()
@@ -179,7 +182,7 @@ describe('TemplateStore', () => {
 		})
 
 		test('should handle malformed JSON', async () => {
-			vi.mocked(readdir).mockResolvedValue(['malformed.json'])
+			vi.mocked(readdir).mockResolvedValue(['malformed.json'] as any)
 			vi.mocked(readFile).mockResolvedValue('{ invalid json }')
 
 			await templateStore.initialize()
@@ -192,7 +195,7 @@ describe('TemplateStore', () => {
 	describe('template reloading', () => {
 		test('should reload templates successfully', async () => {
 			const mockTemplateContent = JSON.stringify(sampleTemplate)
-			vi.mocked(readdir).mockResolvedValue(['test.json'])
+			vi.mocked(readdir).mockResolvedValue(['test.json'] as any)
 			vi.mocked(readFile).mockResolvedValue(mockTemplateContent)
 
 			await templateStore.initialize()
@@ -200,7 +203,7 @@ describe('TemplateStore', () => {
 
 			// Mock additional template for reload
 			const newTemplate = { ...sampleTemplate, name: 'new_template' }
-			vi.mocked(readdir).mockResolvedValue(['test.json', 'new.json'])
+			vi.mocked(readdir).mockResolvedValue(['test.json', 'new.json'] as any)
 			vi.mocked(readFile)
 				.mockResolvedValueOnce(mockTemplateContent)
 				.mockResolvedValueOnce(JSON.stringify(newTemplate))
@@ -223,7 +226,7 @@ describe('TemplateStore', () => {
 				category: 'AUTHENTICATION' as const,
 			}
 
-			vi.mocked(readdir).mockResolvedValue(['utility.json', 'auth.json'])
+			vi.mocked(readdir).mockResolvedValue(['utility.json', 'auth.json'] as any)
 			vi.mocked(readFile)
 				.mockResolvedValueOnce(JSON.stringify(utilityTemplate))
 				.mockResolvedValueOnce(JSON.stringify(authTemplate))
@@ -245,7 +248,7 @@ describe('TemplateStore', () => {
 	describe('memory management', () => {
 		test('should clean up file watcher on cleanup', async () => {
 			const mockTemplateContent = JSON.stringify(sampleTemplate)
-			vi.mocked(readdir).mockResolvedValue(['test.json'])
+			vi.mocked(readdir).mockResolvedValue(['test.json'] as any)
 			vi.mocked(readFile).mockResolvedValue(mockTemplateContent)
 
 			await templateStore.initialize()
@@ -275,7 +278,7 @@ describe('TemplateStore', () => {
 			const template1 = { ...sampleTemplate, name: 'test', language: 'en' }
 			const template2 = { ...sampleTemplate, name: 'test', language: 'es' }
 
-			vi.mocked(readdir).mockResolvedValue(['en.json', 'es.json'])
+			vi.mocked(readdir).mockResolvedValue(['en.json', 'es.json'] as any)
 			vi.mocked(readFile)
 				.mockResolvedValueOnce(JSON.stringify(template1))
 				.mockResolvedValueOnce(JSON.stringify(template2))
@@ -297,7 +300,7 @@ describe('TemplateStore', () => {
 				category: 'MARKETING' as const,
 			}
 
-			vi.mocked(readdir).mockResolvedValue(['test1.json', 'test2.json'])
+			vi.mocked(readdir).mockResolvedValue(['test1.json', 'test2.json'] as any)
 			vi.mocked(readFile)
 				.mockResolvedValueOnce(JSON.stringify(template1))
 				.mockResolvedValueOnce(JSON.stringify(template2))

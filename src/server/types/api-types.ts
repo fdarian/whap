@@ -1,5 +1,32 @@
 // WhatsApp Cloud API Types for Mock Server
 
+/** Template structure based on WhatsApp Business API format */
+export interface Template {
+	name: string
+	language: string
+	category: 'MARKETING' | 'UTILITY' | 'AUTHENTICATION'
+	components: TemplateComponent[]
+	variables?: Record<
+		string,
+		{
+			description: string
+			example: string
+		}
+	>
+}
+
+export interface TemplateComponent {
+	type: 'HEADER' | 'BODY' | 'FOOTER' | 'BUTTONS'
+	format?: 'TEXT' | 'IMAGE' | 'VIDEO' | 'DOCUMENT'
+	text?: string
+	buttons?: Array<{
+		type: 'QUICK_REPLY' | 'URL' | 'PHONE_NUMBER'
+		text: string
+		url?: string
+		phone_number?: string
+	}>
+}
+
 export interface WhatsAppSendMessageRequest {
 	messaging_product: 'whatsapp'
 	to: string

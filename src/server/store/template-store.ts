@@ -1,38 +1,12 @@
 import { readFile, readdir } from 'node:fs/promises'
 import { join } from 'node:path'
-import chokidar from 'chokidar'
+import type { FSWatcher } from 'chokidar'
+import type { Template } from '../types/api-types.ts'
 import { validateTemplateData } from '../utils/validator.ts'
-
-/** Template structure based on WhatsApp Business API format */
-export interface Template {
-	name: string
-	language: string
-	category: 'MARKETING' | 'UTILITY' | 'AUTHENTICATION'
-	components: TemplateComponent[]
-	variables?: Record<
-		string,
-		{
-			description: string
-			example: string
-		}
-	>
-}
-
-export interface TemplateComponent {
-	type: 'HEADER' | 'BODY' | 'FOOTER' | 'BUTTONS'
-	format?: 'TEXT' | 'IMAGE' | 'VIDEO' | 'DOCUMENT'
-	text?: string
-	buttons?: Array<{
-		type: 'QUICK_REPLY' | 'URL' | 'PHONE_NUMBER'
-		text: string
-		url?: string
-		phone_number?: string
-	}>
-}
 
 export class TemplateStore {
 	private templates: Map<string, Template> = new Map()
-	private watcher: chokidar.FSWatcher | null = null
+	private watcher: FSWatcher | null = null
 	private templatesDir: string
 	private isWatching = false
 
@@ -67,52 +41,57 @@ export class TemplateStore {
 			`🔍 Setting up file watcher for directory: ${this.templatesDir}`
 		)
 
-		this.watcher = chokidar.watch(this.templatesDir, {
-			ignored: /^\./,
-			persistent: true,
-			ignoreInitial: true,
-			depth: 0, // Only watch direct files, not subdirectories
-			awaitWriteFinish: {
-				stabilityThreshold: 100,
-				pollInterval: 50,
-			},
+		// Dynamic import chokidar to fix type issues
+		import('chokidar').then((chokidarModule) => {
+			this.watcher = chokidarModule.default.watch(this.templatesDir, {
+				ignored: /^\./,
+				persistent: true,
+				ignoreInitial: true,
+				depth: 0, // Only watch direct files, not subdirectories
+				awaitWriteFinish: {
+					stabilityThreshold: 100,
+					pollInterval: 50,
+				},
+			})
+
+			if (this.watcher) {
+				this.watcher
+					.on('add', async (path: string) => {
+						if (path.endsWith('.json')) {
+							console.log(`📄 Template file added: ${path}`)
+							await this.loadTemplate(path)
+						}
+					})
+					.on('change', async (path: string) => {
+						if (path.endsWith('.json')) {
+							console.log(`📝 Template file changed: ${path}`)
+							await this.loadTemplate(path)
+						}
+					})
+					.on('unlink', (path: string) => {
+						if (path.endsWith('.json')) {
+							console.log(`🗑️  Template file removed: ${path}`)
+							this.removeTemplateByPath(path)
+						}
+					})
+					.on('error', (error: unknown) => {
+						console.error('❌ Template watcher error:', error)
+					})
+					.on('ready', () => {
+						console.log('✅ Template file watcher ready')
+					})
+			}
+
+			this.isWatching = true
+			console.log('👀 Started watching templates directory for changes')
 		})
-
-		this.watcher
-			.on('add', async (path) => {
-				if (path.endsWith('.json')) {
-					console.log(`📄 Template file added: ${path}`)
-					await this.loadTemplate(path)
-				}
-			})
-			.on('change', async (path) => {
-				if (path.endsWith('.json')) {
-					console.log(`📝 Template file changed: ${path}`)
-					await this.loadTemplate(path)
-				}
-			})
-			.on('unlink', (path) => {
-				if (path.endsWith('.json')) {
-					console.log(`🗑️  Template file removed: ${path}`)
-					this.removeTemplateByPath(path)
-				}
-			})
-			.on('error', (error) => {
-				console.error('❌ Template watcher error:', error)
-			})
-			.on('ready', () => {
-				console.log('✅ Template file watcher ready')
-			})
-
-		this.isWatching = true
-		console.log('👀 Started watching templates directory for changes')
 	}
 
 	/** Load all template files from the templates directory */
 	private async loadAllTemplates(): Promise<void> {
 		try {
 			console.log(`📂 Reading templates from: ${this.templatesDir}`)
-			const files = await readdir(this.templatesDir)
+			const files = (await readdir(this.templatesDir)) as string[]
 			console.log(`📋 Found files: ${files.join(', ')}`)
 
 			const jsonFiles = files.filter((file) => file.endsWith('.json'))
@@ -229,3 +208,6 @@ export class TemplateStore {
 
 // Export singleton instance
 export const templateStore = new TemplateStore()
+
+// Re-export Template type for modules that previously imported it from this file
+export type { Template }

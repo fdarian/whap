@@ -224,7 +224,7 @@ const templateSchema: JSONSchemaType<Template> = {
 		},
 	},
 	required: ['name', 'language', 'category', 'components'],
-}
+} as unknown as JSONSchemaType<Template>
 
 /** Compile schemas */
 const validateWhatsAppMessage = ajv.compile(whatsAppSendMessageSchema)
@@ -245,7 +245,9 @@ export interface ValidationError {
 }
 
 /** Convert Ajv errors to more readable format */
-function formatAjvErrors(errors: Ajv.ErrorObject[]): ValidationError[] {
+function formatAjvErrors(
+	errors: import('ajv').ErrorObject[]
+): ValidationError[] {
 	return errors.map((error) => ({
 		path: error.instancePath || 'root',
 		message: error.message || 'Unknown validation error',
