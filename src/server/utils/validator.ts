@@ -152,10 +152,12 @@ const templateSchema: JSONSchemaType<Template> = {
 		language: {
 			type: 'string',
 			minLength: 1,
+			nullable: true,
 		},
 		category: {
 			type: 'string',
 			enum: ['MARKETING', 'UTILITY', 'AUTHENTICATION'],
+			nullable: true,
 		},
 		components: {
 			type: 'array',
@@ -223,7 +225,7 @@ const templateSchema: JSONSchemaType<Template> = {
 			nullable: true,
 		},
 	},
-	required: ['name', 'language', 'category', 'components'],
+	required: ['name', 'components'],
 } as unknown as JSONSchemaType<Template>
 
 /** Compile schemas */

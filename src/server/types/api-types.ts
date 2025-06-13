@@ -3,8 +3,8 @@
 /** Template structure based on WhatsApp Business API format */
 export interface Template {
 	name: string
-	language: string
-	category: 'MARKETING' | 'UTILITY' | 'AUTHENTICATION'
+	language?: string
+	category?: 'MARKETING' | 'UTILITY' | 'AUTHENTICATION'
 	components: TemplateComponent[]
 	variables?: Record<
 		string,
