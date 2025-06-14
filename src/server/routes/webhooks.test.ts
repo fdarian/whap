@@ -158,7 +158,9 @@ describe('Webhooks API Integration Tests', () => {
 			expect(message.from).toBe(simulateParams.from)
 			expect(message.id).toBe(simulateParams.message.id)
 			expect(message.type).toBe('text')
-			expect(message.text.body).toBe(simulateParams.message.text.body)
+			if (message.type === 'text' && simulateParams.message.type === 'text') {
+				expect(message.text.body).toBe(simulateParams.message.text.body)
+			}
 		})
 
 		test('should return error when from is missing', async () => {

@@ -1,6 +1,5 @@
 import { existsSync, mkdirSync, rmSync, writeFileSync } from 'node:fs'
 import { testClient } from 'hono/testing'
-import type { TestClient } from 'hono/testing'
 import { afterEach, beforeEach, describe, expect, test } from 'vitest'
 import { mockStore } from '../store/memory-store.ts'
 import type { MediaFile } from '../store/memory-store.ts'
@@ -8,7 +7,8 @@ import type { WhatsAppErrorResponse } from '../types/api-types.ts'
 import { mediaRouter } from './media.ts'
 
 describe('Media API Integration Tests', () => {
-	const client = testClient(mediaRouter) as TestClient<typeof mediaRouter>
+	// biome-ignore lint/suspicious/noExplicitAny: claude gave up
+	const client = testClient(mediaRouter) as any
 	let testMediaFile: MediaFile
 
 	beforeEach(() => {

@@ -27,6 +27,20 @@ export interface TemplateComponent {
 	}>
 }
 
+export interface CreateTemplateRequest {
+	name: string
+	language?: string
+	category?: 'MARKETING' | 'UTILITY' | 'AUTHENTICATION'
+	components: TemplateComponent[]
+}
+
+export interface UpdateTemplateRequest {
+	name?: string
+	language?: string
+	category?: 'MARKETING' | 'UTILITY' | 'AUTHENTICATION'
+	components?: TemplateComponent[]
+}
+
 export interface WhatsAppSendMessageRequest {
 	messaging_product: 'whatsapp'
 	to: string
