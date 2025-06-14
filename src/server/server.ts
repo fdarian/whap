@@ -7,10 +7,12 @@ import { cors } from 'hono/cors'
 import { logger } from 'hono/logger'
 import { getMediaConfig, getWebhookConfig } from './config.ts'
 import { conversationRouter } from './routes/conversation.ts'
+import { mediaRouter } from './routes/media.ts'
 import { messagesRouter } from './routes/messages.ts'
 import { statusRouter } from './routes/status.ts'
 import { templatesRouter } from './routes/templates.ts'
 import { webhooksRouter } from './routes/webhooks.ts'
+import { mockStore } from './store/memory-store.ts'
 import { templateStore } from './store/template-store.ts'
 import { addClient, removeClient } from './websocket.ts'
 
@@ -93,8 +95,10 @@ app.get('/health', (c) =>
 		media: {
 			config: getMediaConfig(),
 			stats: {
-				// This will be populated when we have media files
-				totalFiles: 0,
+				totalFiles: mockStore.getAllMediaFiles().length,
+				totalSize: mockStore
+					.getAllMediaFiles()
+					.reduce((total, file) => total + file.fileSize, 0),
 			},
 		},
 	})
@@ -134,6 +138,7 @@ if (process.env.NODE_ENV !== 'production') {
 }
 app.route('/v22.0', messagesRouter)
 app.route('/v22.0', templatesRouter)
+app.route('/v22.0', mediaRouter)
 // The /mock path is for internal simulation tools
 app.route('/mock', webhooksRouter)
 app.route('/status', statusRouter)
