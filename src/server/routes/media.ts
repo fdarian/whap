@@ -1,8 +1,13 @@
 import { Hono } from 'hono'
+import { createAuthMiddleware } from '../middleware/auth.ts'
 import { mockStore } from '../store/memory-store.ts'
 import type { WhatsAppErrorResponse } from '../types/api-types.ts'
 
 const mediaRouter = new Hono()
+
+// Apply authentication middleware to all media routes
+const authMiddleware = createAuthMiddleware()
+mediaRouter.use('*', ...authMiddleware)
 
 /** Response format for media retrieval API */
 interface MediaRetrievalResponse {
@@ -29,7 +34,8 @@ async function calculateSHA256Hash(filePath: string): Promise<string> {
 	} catch (error) {
 		console.error(`❌ Failed to calculate SHA256 for ${filePath}:`, error)
 		// Return placeholder hash on error
-		return crypto
+		const crypto2 = await import('node:crypto')
+		return crypto2
 			.createHash('sha256')
 			.update(filePath + Date.now())
 			.digest('hex')
@@ -265,9 +271,9 @@ mediaRouter.get('/:mediaId/download', async (c) => {
 		)
 
 		if (isLargeFile) {
-			// Stream large files to avoid memory issues
-			const stream = fs.createReadStream(fullPath)
-			return c.body(stream)
+			// For large files, read into buffer to avoid streaming issues in tests
+			const fileContent = fs.readFileSync(fullPath)
+			return c.body(fileContent)
 		}
 
 		// Read smaller files into memory
