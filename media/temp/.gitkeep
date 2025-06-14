@@ -1,0 +1,2 @@
+# This file ensures the media/temp directory is tracked by git
+# Temporary media files will be processed in this directory 
