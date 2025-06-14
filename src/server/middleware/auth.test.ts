@@ -1,6 +1,6 @@
 import { Hono } from 'hono'
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
-import { createAuthMiddleware, rateLimiter } from './auth.ts'
+import { rateLimiter } from './auth.ts'
 
 describe('Auth Middleware', () => {
 	let app: Hono
@@ -12,7 +12,8 @@ describe('Auth Middleware', () => {
 		process.env.RATE_LIMIT_MAX_REQUESTS = '5'
 
 		app = new Hono()
-		app.use('/test', ...createAuthMiddleware())
+		// Authentication disabled for mock development server
+		// app.use('/test', ...createAuthMiddleware())
 		app.get('/test', (c) => c.text('OK'))
 	})
 

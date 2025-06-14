@@ -2,7 +2,6 @@ import { serve } from '@hono/node-server'
 import { Hono } from 'hono'
 import { cors } from 'hono/cors'
 import { afterAll, beforeAll, beforeEach, describe, expect, test } from 'vitest'
-import { createAuthMiddleware } from '../middleware/auth.ts'
 import { templateStore } from '../store/template-store.ts'
 import type {
 	CreateTemplateRequest,
@@ -23,8 +22,8 @@ describe('Templates API Integration Tests', () => {
 		// Set up test server
 		const app = new Hono()
 		app.use('*', cors())
-		// Apply authentication middleware to protected routes
-		app.use('/v22.0/*', ...createAuthMiddleware())
+		// Authentication disabled for mock development server
+		// app.use('/v22.0/*', ...createAuthMiddleware())
 		app.route('/v22.0', templatesRouter)
 
 		server = serve({

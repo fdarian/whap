@@ -1,13 +1,12 @@
 import { Hono } from 'hono'
-import { createAuthMiddleware } from '../middleware/auth.ts'
 import { mockStore } from '../store/memory-store.ts'
 import type { WhatsAppErrorResponse } from '../types/api-types.ts'
 
 const mediaRouter = new Hono()
 
 // Apply authentication middleware to all media routes
-const authMiddleware = createAuthMiddleware()
-mediaRouter.use('*', ...authMiddleware)
+// const authMiddleware = createAuthMiddleware()
+// mediaRouter.use('*', ...authMiddleware)
 
 /** Response format for media retrieval API */
 interface MediaRetrievalResponse {

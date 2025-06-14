@@ -10,7 +10,7 @@ import {
 	test,
 	vi,
 } from 'vitest'
-import { createAuthMiddleware, rateLimiter } from '../middleware/auth.ts'
+import { rateLimiter } from '../middleware/auth.ts'
 import { type StoredMessage, mockStore } from '../store/memory-store.ts'
 import { templateStore } from '../store/template-store.ts'
 import type {
@@ -42,8 +42,8 @@ describe('Messages API Integration Tests', () => {
 		// Set up test messages server
 		const app = new Hono()
 		app.use('*', cors())
-		// Apply authentication middleware to protected routes
-		app.use('/v22.0/*', ...createAuthMiddleware())
+		// Authentication disabled for mock development server
+		// app.use('/v22.0/*', ...createAuthMiddleware())
 		app.route('/v22.0', messagesRouter)
 
 		server = serve({
