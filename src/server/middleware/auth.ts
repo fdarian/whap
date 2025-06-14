@@ -40,15 +40,11 @@ const rateLimiterInternal = createMiddleware(async (c, next) => {
 	if (record.count > maxRequests) {
 		const errorResponse: WhatsAppErrorResponse = {
 			error: {
-				message: 'Too many requests, please try again later.',
+				message: `Too many requests, please try again later. Rate limit exceeded. Max requests: ${maxRequests} per ${
+					windowMs / 1000
+				} seconds.`,
 				type: 'RATE_LIMIT',
 				code: 13,
-				error_data: {
-					messaging_product: 'whatsapp',
-					details: `Rate limit exceeded. Max requests: ${maxRequests} per ${
-						windowMs / 1000
-					} seconds.`,
-				},
 			},
 		}
 		return c.json(errorResponse, 429)

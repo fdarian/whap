@@ -203,19 +203,13 @@ webhooksRouter.post(
 		const params = c.req.valid('json') as SimulateMessageParams
 
 		// Get webhook URL for the specific phone number
-		const webhookUrl = getWebhookUrl(params.to)
+		// Check store-based webhook config first, then fall back to CLI/env config
+		const storeConfig = mockStore.getWebhookConfig(params.to)
+		const webhookUrl = storeConfig?.url || getWebhookUrl(params.to)
 
 		if (!webhookUrl) {
-			return c.json(
-				{
-					error: {
-						message:
-							'No webhook URL configured for this phone number. Set WEBHOOK_URL environment variable or use --webhook-url CLI argument.',
-						type: 'webhook_not_configured',
-						code: 400,
-					},
-				} as WhatsAppErrorResponse,
-				400
+			console.warn(
+				`⚠️  No webhook URL configured for phone number ${params.to}. Skipping webhook delivery for testing.`
 			)
 		}
 
@@ -229,6 +223,19 @@ webhooksRouter.post(
 					params.message.caption
 				)
 				console.log(`📎 Processed media file: ${mediaMetadata.filename}`)
+
+				// Store media file in mockStore
+				const storedMediaFile = mockStore.storeMediaFile({
+					filePath: mediaMetadata.storedPath,
+					filename: mediaMetadata.filename,
+					mimeType: mediaMetadata.mimeType,
+					fileSize: mediaMetadata.size,
+					phoneNumberId: params.to,
+					status: 'processed',
+				})
+
+				// Update mediaMetadata with the stored media ID
+				mediaMetadata.id = storedMediaFile.id
 			} catch (error) {
 				return c.json(
 					{
@@ -338,12 +345,14 @@ webhooksRouter.post(
 		console.log(
 			`Simulating incoming ${params.message.type} message from ${params.from} to ${params.to}`
 		)
-		console.log(`🔗 Sending webhook to: ${webhookUrl}`)
 
-		// Send webhook (fire and forget)
-		sendWebhook(webhookUrl, payload).catch((error) => {
-			console.error(`❌ Webhook delivery failed: ${error.message}`)
-		})
+		// Send webhook only if URL is configured
+		if (webhookUrl) {
+			console.log(`🔗 Sending webhook to: ${webhookUrl}`)
+			sendWebhook(webhookUrl, payload).catch((error) => {
+				console.error(`❌ Webhook delivery failed: ${error.message}`)
+			})
+		}
 
 		return c.json({
 			success: true,

@@ -146,7 +146,7 @@ mediaRouter.get('/:mediaId', async (c) => {
 	}
 })
 
-// GET /v22.0/media/{MEDIA_ID}/download - Download media file
+// GET /v22.0/{MEDIA_ID}/download - Download media file
 mediaRouter.get('/:mediaId/download', async (c) => {
 	const mediaId = c.req.param('mediaId')
 
