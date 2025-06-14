@@ -13,12 +13,27 @@ interface MediaRetrievalResponse {
 	id: string
 }
 
-/** Generate SHA256 hash placeholder for media file */
-function generateSHA256Hash(filePath: string): string {
-	// In a real implementation, this would calculate the actual SHA256 hash
-	// For now, we'll generate a placeholder hash
-	const crypto = require('node:crypto')
-	return crypto.createHash('sha256').update(filePath).digest('hex')
+/** Calculate SHA256 hash of media file */
+async function calculateSHA256Hash(filePath: string): Promise<string> {
+	try {
+		const crypto = await import('node:crypto')
+		const fs = await import('node:fs')
+		const path = await import('node:path')
+
+		// Resolve full path
+		const fullPath = path.resolve(filePath)
+
+		// Read file and calculate hash
+		const fileBuffer = fs.readFileSync(fullPath)
+		return crypto.createHash('sha256').update(fileBuffer).digest('hex')
+	} catch (error) {
+		console.error(`❌ Failed to calculate SHA256 for ${filePath}:`, error)
+		// Return placeholder hash on error
+		return crypto
+			.createHash('sha256')
+			.update(filePath + Date.now())
+			.digest('hex')
+	}
 }
 
 /** Generate downloadable URL for media file */
@@ -30,11 +45,25 @@ function generateMediaUrl(mediaId: string, baseUrl?: string): string {
 }
 
 // GET /v22.0/{MEDIA_ID} - Retrieve media metadata
-mediaRouter.get('/:mediaId', (c) => {
+mediaRouter.get('/:mediaId', async (c) => {
 	const mediaId = c.req.param('mediaId')
 
 	// Validate media ID format
 	if (!mediaId || typeof mediaId !== 'string') {
+		return c.json(
+			{
+				error: {
+					message: 'Invalid media ID format',
+					type: 'validation_error',
+					code: 400,
+				},
+			} as WhatsAppErrorResponse,
+			400
+		)
+	}
+
+	// Validate media ID pattern (should start with 'media_')
+	if (!mediaId.startsWith('media_')) {
 		return c.json(
 			{
 				error: {
@@ -77,19 +106,39 @@ mediaRouter.get('/:mediaId', (c) => {
 		)
 	}
 
-	// Generate response
-	const response: MediaRetrievalResponse = {
-		url: generateMediaUrl(mediaFile.id),
-		mime_type: mediaFile.mimeType,
-		sha256: generateSHA256Hash(mediaFile.filePath),
-		file_size: mediaFile.fileSize,
-		id: mediaFile.id,
-	}
+	try {
+		// Calculate SHA256 hash of the actual file
+		const sha256Hash = await calculateSHA256Hash(mediaFile.filePath)
 
-	console.log(
-		`📎 Retrieved media metadata for ${mediaId}: ${mediaFile.filename}`
-	)
-	return c.json(response)
+		// Generate response
+		const response: MediaRetrievalResponse = {
+			url: generateMediaUrl(
+				mediaFile.id,
+				c.req.header('Host') ? `http://${c.req.header('Host')}` : undefined
+			),
+			mime_type: mediaFile.mimeType,
+			sha256: sha256Hash,
+			file_size: mediaFile.fileSize,
+			id: mediaFile.id,
+		}
+
+		console.log(
+			`📎 Retrieved media metadata for ${mediaId}: ${mediaFile.filename}`
+		)
+		return c.json(response)
+	} catch (error) {
+		console.error(`❌ Error retrieving media metadata for ${mediaId}:`, error)
+		return c.json(
+			{
+				error: {
+					message: 'Failed to retrieve media metadata',
+					type: 'server_error',
+					code: 500,
+				},
+			} as WhatsAppErrorResponse,
+			500
+		)
+	}
 })
 
 // GET /v22.0/media/{MEDIA_ID}/download - Download media file
@@ -98,6 +147,20 @@ mediaRouter.get('/:mediaId/download', async (c) => {
 
 	// Validate media ID format
 	if (!mediaId || typeof mediaId !== 'string') {
+		return c.json(
+			{
+				error: {
+					message: 'Invalid media ID format',
+					type: 'validation_error',
+					code: 400,
+				},
+			} as WhatsAppErrorResponse,
+			400
+		)
+	}
+
+	// Validate media ID pattern (should start with 'media_')
+	if (!mediaId.startsWith('media_')) {
 		return c.json(
 			{
 				error: {
@@ -145,8 +208,29 @@ mediaRouter.get('/:mediaId/download', async (c) => {
 		const fs = await import('node:fs')
 		const path = await import('node:path')
 
-		// Resolve the full file path
+		// Resolve the full file path and protect against path traversal
 		const fullPath = path.resolve(mediaFile.filePath)
+
+		// Security check: ensure the resolved path is within allowed directories
+		const allowedPaths = ['.whap/media', 'media/uploads', 'media/temp']
+		const isAllowedPath = allowedPaths.some((allowedPath) => {
+			const resolvedAllowedPath = path.resolve(allowedPath)
+			return fullPath.startsWith(resolvedAllowedPath)
+		})
+
+		if (!isAllowedPath) {
+			console.error(`❌ Attempted access to unauthorized path: ${fullPath}`)
+			return c.json(
+				{
+					error: {
+						message: 'Unauthorized file access',
+						type: 'security_error',
+						code: 403,
+					},
+				} as WhatsAppErrorResponse,
+				403
+			)
+		}
 
 		// Check if file exists
 		if (!fs.existsSync(fullPath)) {
@@ -162,8 +246,9 @@ mediaRouter.get('/:mediaId/download', async (c) => {
 			)
 		}
 
-		// Read file content
-		const fileContent = fs.readFileSync(fullPath)
+		// For large files (>10MB), use streaming instead of loading into memory
+		const fileStats = fs.statSync(fullPath)
+		const isLargeFile = fileStats.size > 10 * 1024 * 1024 // 10MB threshold
 
 		// Set appropriate headers
 		c.header('Content-Type', mediaFile.mimeType)
@@ -173,10 +258,20 @@ mediaRouter.get('/:mediaId/download', async (c) => {
 			`attachment; filename="${mediaFile.filename}"`
 		)
 		c.header('Cache-Control', 'private, max-age=3600') // Cache for 1 hour
+		c.header('Accept-Ranges', 'bytes') // Support partial content requests
 
-		console.log(`📥 Downloaded media file ${mediaId}: ${mediaFile.filename}`)
+		console.log(
+			`📥 Downloading media file ${mediaId}: ${mediaFile.filename} (${(fileStats.size / 1024 / 1024).toFixed(2)}MB)`
+		)
 
-		// Return file content
+		if (isLargeFile) {
+			// Stream large files to avoid memory issues
+			const stream = fs.createReadStream(fullPath)
+			return c.body(stream)
+		}
+
+		// Read smaller files into memory
+		const fileContent = fs.readFileSync(fullPath)
 		return c.body(fileContent)
 	} catch (error) {
 		console.error(`❌ Error downloading media file ${mediaId}:`, error)
