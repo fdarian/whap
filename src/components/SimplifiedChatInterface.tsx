@@ -14,7 +14,7 @@ interface SimplifiedChatInterfaceProps {
 	onNewConversation: () => void
 }
 
-type InterfaceMode = 'chat' | 'templates' | 'template-params'
+type InterfaceMode = 'chat' | 'templates' | 'template-params' | 'file-input'
 
 export const SimplifiedChatInterface: FC<SimplifiedChatInterfaceProps> = ({
 	apiClient,
@@ -43,6 +43,14 @@ export const SimplifiedChatInterface: FC<SimplifiedChatInterfaceProps> = ({
 		{}
 	)
 	const [templatesLoading, setTemplatesLoading] = useState(false)
+
+	// File input state
+	const [filePath, setFilePath] = useState('')
+	const [fileCaption, setFileCaption] = useState('')
+	const [fileUploadStatus, setFileUploadStatus] = useState<
+		'idle' | 'uploading' | 'success' | 'error'
+	>('idle')
+	const [fileUploadError, setFileUploadError] = useState('')
 
 	const terminal = useTerminal()
 
@@ -122,6 +130,10 @@ export const SimplifiedChatInterface: FC<SimplifiedChatInterfaceProps> = ({
 			if (key.ctrl && input === 't') {
 				void handleTemplateMode()
 			}
+
+			if (key.ctrl && input === 'f') {
+				handleFileInputMode()
+			}
 		} else if (mode === 'templates') {
 			if (key.upArrow && selectedTemplateIndex > 0) {
 				setSelectedTemplateIndex(selectedTemplateIndex - 1)
@@ -141,6 +153,18 @@ export const SimplifiedChatInterface: FC<SimplifiedChatInterfaceProps> = ({
 		} else if (mode === 'template-params') {
 			// Template parameter input is now handled by TemplateVariableCollector
 			// No additional input handling needed here
+		} else if (mode === 'file-input') {
+			if (key.return && filePath.trim()) {
+				void handleFileUpload()
+			}
+
+			if (key.escape) {
+				setMode('chat')
+				setFilePath('')
+				setFileCaption('')
+				setFileUploadStatus('idle')
+				setFileUploadError('')
+			}
 		}
 	})
 
@@ -156,6 +180,14 @@ export const SimplifiedChatInterface: FC<SimplifiedChatInterfaceProps> = ({
 		} finally {
 			setTemplatesLoading(false)
 		}
+	}
+
+	const handleFileInputMode = () => {
+		setMode('file-input')
+		setFilePath('')
+		setFileCaption('')
+		setFileUploadStatus('idle')
+		setFileUploadError('')
 	}
 
 	const handleSelectTemplate = (template: Template) => {
@@ -297,6 +329,68 @@ export const SimplifiedChatInterface: FC<SimplifiedChatInterfaceProps> = ({
 		)
 	}
 
+	const renderFileInput = () => {
+		const renderFileUploadStatus = () => {
+			switch (fileUploadStatus) {
+				case 'uploading':
+					return <Text color="yellow">Uploading file...</Text>
+				case 'success':
+					return <Text color="green">✓ File sent successfully</Text>
+				case 'error':
+					return <Text color="red">✗ {fileUploadError}</Text>
+				default:
+					return null
+			}
+		}
+
+		return (
+			<Box flexDirection="column">
+				<Box marginBottom={2}>
+					<Text color="cyan">📎 Send File</Text>
+				</Box>
+
+				<Box flexDirection="column" marginBottom={2}>
+					<Box marginBottom={1}>
+						<Text color="white">File Path:</Text>
+					</Box>
+					<Box marginBottom={2}>
+						<TextInput
+							value={filePath}
+							onChange={setFilePath}
+							placeholder="Enter file path (e.g., /path/to/file.jpg)"
+							focus={true}
+						/>
+					</Box>
+
+					<Box marginBottom={1}>
+						<Text color="white">Caption (optional):</Text>
+					</Box>
+					<Box marginBottom={2}>
+						<TextInput
+							value={fileCaption}
+							onChange={setFileCaption}
+							placeholder="Enter caption for the file"
+							focus={false}
+						/>
+					</Box>
+
+					{fileUploadStatus !== 'idle' && (
+						<Box marginBottom={1}>{renderFileUploadStatus()}</Box>
+					)}
+
+					<Box justifyContent="space-between" marginTop={1}>
+						<Text color="gray" dimColor>
+							Enter: Send File | Esc: Back to chat
+						</Text>
+						<Text color="gray" dimColor>
+							Supported: images, documents, audio, video
+						</Text>
+					</Box>
+				</Box>
+			</Box>
+		)
+	}
+
 	const handleTemplateVariablesComplete = async (
 		parameters: Record<string, string>
 	) => {
@@ -343,6 +437,46 @@ export const SimplifiedChatInterface: FC<SimplifiedChatInterfaceProps> = ({
 		setTemplateParams({})
 	}
 
+	const handleFileUpload = async () => {
+		if (!filePath.trim()) {
+			setFileUploadError('Please enter a file path')
+			return
+		}
+
+		setFileUploadStatus('uploading')
+		setFileUploadError('')
+
+		try {
+			// TODO: This will be implemented when the server upload endpoint is ready
+			// For now, we'll show a placeholder message
+			await new Promise((resolve) => setTimeout(resolve, 1000)) // Simulate upload delay
+
+			// Placeholder message to indicate file would be sent
+			const fileMessage = `📎 File: ${filePath}${fileCaption ? `\nCaption: ${fileCaption}` : ''}`
+
+			// Send as a regular message for now (until media API is implemented)
+			await apiClient.sendMessage(userPhoneNumber, botPhoneNumber, fileMessage)
+
+			setFileUploadStatus('success')
+			setMode('chat')
+			setFilePath('')
+			setFileCaption('')
+
+			// Reload conversation to show the new message
+			await loadConversation()
+
+			// Clear status after 2 seconds
+			setTimeout(() => {
+				setFileUploadStatus('idle')
+			}, 2000)
+		} catch (error) {
+			setFileUploadStatus('error')
+			setFileUploadError(
+				error instanceof Error ? error.message : 'Failed to upload file'
+			)
+		}
+	}
+
 	return (
 		<Box flexDirection="column" height="100%">
 			{/* Main area */}
@@ -355,6 +489,7 @@ export const SimplifiedChatInterface: FC<SimplifiedChatInterfaceProps> = ({
 						onCancel={handleTemplateVariablesCancel}
 					/>
 				)}
+				{mode === 'file-input' && renderFileInput()}
 
 				{mode === 'chat' && (
 					<>
@@ -465,7 +600,8 @@ export const SimplifiedChatInterface: FC<SimplifiedChatInterfaceProps> = ({
 							Press Enter to send message
 						</Text>
 						<Text color="gray" dimColor>
-							Ctrl+R: Refresh | Ctrl+N: New Chat | Ctrl+T: Templates
+							Ctrl+R: Refresh | Ctrl+N: New Chat | Ctrl+T: Templates | Ctrl+F:
+							Send File
 						</Text>
 					</Box>
 				</Box>
