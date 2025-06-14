@@ -447,15 +447,56 @@ export const SimplifiedChatInterface: FC<SimplifiedChatInterfaceProps> = ({
 		setFileUploadError('')
 
 		try {
-			// TODO: This will be implemented when the server upload endpoint is ready
-			// For now, we'll show a placeholder message
-			await new Promise((resolve) => setTimeout(resolve, 1000)) // Simulate upload delay
+			// Determine file type from extension
+			const extension = filePath.toLowerCase().split('.').pop() || ''
+			let messageType: 'image' | 'document' | 'audio' | 'video' | 'sticker' =
+				'document'
 
-			// Placeholder message to indicate file would be sent
-			const fileMessage = `📎 File: ${filePath}${fileCaption ? `\nCaption: ${fileCaption}` : ''}`
+			if (['jpg', 'jpeg', 'png', 'gif', 'webp'].includes(extension)) {
+				messageType = 'image'
+			} else if (['mp4', 'mov', 'avi', 'mkv', 'webm'].includes(extension)) {
+				messageType = 'video'
+			} else if (['mp3', 'wav', 'aac', 'ogg', 'm4a'].includes(extension)) {
+				messageType = 'audio'
+			} else if (['webp'].includes(extension)) {
+				messageType = 'sticker'
+			}
 
-			// Send as a regular message for now (until media API is implemented)
-			await apiClient.sendMessage(userPhoneNumber, botPhoneNumber, fileMessage)
+			// Create the payload for the mock/simulate-message endpoint
+			const payload = {
+				from: userPhoneNumber,
+				to: botPhoneNumber,
+				message: {
+					id: `msg_${Date.now()}`,
+					timestamp: Math.floor(Date.now() / 1000).toString(),
+					type: messageType,
+					filePath: filePath,
+					...(fileCaption && { caption: fileCaption }),
+				},
+			}
+
+			// Send file upload request to mock/simulate-message endpoint
+			const baseUrl =
+				process.env.API_BASE_URL ||
+				`http://localhost:${process.env.PORT ?? 3010}`
+			const response = await fetch(`${baseUrl}/mock/simulate-message`, {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/json',
+				},
+				body: JSON.stringify(payload),
+			})
+
+			if (!response.ok) {
+				const errorData = await response.json().catch(() => null)
+				throw new Error(
+					errorData?.error?.message ||
+						`HTTP ${response.status}: ${response.statusText}`
+				)
+			}
+
+			const result = await response.json()
+			console.log('File upload successful:', result)
 
 			setFileUploadStatus('success')
 			setMode('chat')
