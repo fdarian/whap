@@ -8,6 +8,7 @@ import type {
 	WebhookPayload,
 	WhatsAppErrorResponse,
 } from '../types/api-types.ts'
+import { processMediaFile } from '../utils/media-utils.ts'
 
 const webhooksRouter = new Hono()
 
@@ -153,17 +154,47 @@ webhooksRouter.post(
 			)
 		}
 
-		if (!body.message || !body.message.text || !body.message.text.body) {
+		if (!body.message) {
 			return c.json(
 				{
 					error: {
-						message: 'message.text.body is required',
+						message: 'message is required',
 						type: 'validation_error',
 						code: 400,
 					},
 				} as WhatsAppErrorResponse,
 				400
 			)
+		}
+
+		// Validate based on message type
+		if (body.message.type === 'text') {
+			if (!body.message.text || !body.message.text.body) {
+				return c.json(
+					{
+						error: {
+							message: 'message.text.body is required for text messages',
+							type: 'validation_error',
+							code: 400,
+						},
+					} as WhatsAppErrorResponse,
+					400
+				)
+			}
+		} else {
+			// Media message validation
+			if (!body.message.filePath) {
+				return c.json(
+					{
+						error: {
+							message: 'message.filePath is required for media messages',
+							type: 'validation_error',
+							code: 400,
+						},
+					} as WhatsAppErrorResponse,
+					400
+				)
+			}
 		}
 
 		return body
@@ -188,10 +219,92 @@ webhooksRouter.post(
 			)
 		}
 
+		let mediaMetadata = undefined
+
+		// Process media file if it's a media message
+		if (params.message.type !== 'text') {
+			try {
+				mediaMetadata = processMediaFile(
+					params.message.filePath,
+					params.message.caption
+				)
+				console.log(`📎 Processed media file: ${mediaMetadata.filename}`)
+			} catch (error) {
+				return c.json(
+					{
+						error: {
+							message: `File processing error: ${error instanceof Error ? error.message : 'Unknown error'}`,
+							type: 'file_error',
+							code: 400,
+						},
+					} as WhatsAppErrorResponse,
+					400
+				)
+			}
+		}
+
 		// Store the webhook message
 		const storedMessage = mockStore.storeWebhookMessage(params)
 
-		// Create webhook payload
+		// Create webhook payload based on message type
+		let messagePayload: {
+			from: string
+			id: string
+			timestamp: string
+			type: string
+			text?: { body: string }
+			image?: { id: string; mime_type: string; caption?: string }
+			document?: {
+				id: string
+				mime_type: string
+				filename: string
+				caption?: string
+			}
+			audio?: { id: string; mime_type: string; caption?: string }
+			video?: { id: string; mime_type: string; caption?: string }
+			sticker?: { id: string; mime_type: string }
+		}
+
+		if (params.message.type === 'text') {
+			messagePayload = {
+				from: params.from,
+				id: params.message.id,
+				timestamp: params.message.timestamp,
+				type: 'text',
+				text: {
+					body: params.message.text.body,
+				},
+			}
+		} else {
+			// Media message payload - mediaMetadata is guaranteed to exist here
+			if (!mediaMetadata) {
+				throw new Error('Media metadata is required for media messages')
+			}
+
+			const mediaType = params.message.type
+			const baseMediaObj = {
+				id: mediaMetadata.id,
+				mime_type: mediaMetadata.mimeType,
+				...(mediaMetadata.caption && { caption: mediaMetadata.caption }),
+			}
+
+			messagePayload = {
+				from: params.from,
+				id: params.message.id,
+				timestamp: params.message.timestamp,
+				type: mediaType,
+				...(mediaType === 'image' && { image: baseMediaObj }),
+				...(mediaType === 'document' && {
+					document: { ...baseMediaObj, filename: mediaMetadata.filename },
+				}),
+				...(mediaType === 'audio' && { audio: baseMediaObj }),
+				...(mediaType === 'video' && { video: baseMediaObj }),
+				...(mediaType === 'sticker' && {
+					sticker: { id: mediaMetadata.id, mime_type: mediaMetadata.mimeType },
+				}),
+			}
+		}
+
 		const payload: WebhookPayload = {
 			object: 'whatsapp_business_account',
 			entry: [
@@ -213,17 +326,7 @@ webhooksRouter.post(
 										wa_id: params.from,
 									},
 								],
-								messages: [
-									{
-										from: params.from,
-										id: params.message.id,
-										timestamp: params.message.timestamp,
-										type: 'text',
-										text: {
-											body: params.message.text.body,
-										},
-									},
-								],
+								messages: [messagePayload],
 							},
 							field: 'messages',
 						},
@@ -233,7 +336,7 @@ webhooksRouter.post(
 		}
 
 		console.log(
-			`Simulating incoming message from ${params.from} to ${params.to}`
+			`Simulating incoming ${params.message.type} message from ${params.from} to ${params.to}`
 		)
 		console.log(`🔗 Sending webhook to: ${webhookUrl}`)
 
@@ -244,8 +347,9 @@ webhooksRouter.post(
 
 		return c.json({
 			success: true,
-			message: 'Webhook message simulated and sent',
+			message: `Webhook ${params.message.type} message simulated and sent`,
 			messageId: storedMessage.id,
+			...(mediaMetadata && { mediaId: mediaMetadata.id }),
 			webhookUrl,
 		})
 	}
