@@ -228,10 +228,72 @@ const templateSchema: JSONSchemaType<Template> = {
 	required: ['name', 'components'],
 } as unknown as JSONSchemaType<Template>
 
+/** Schema for Template Update */
+const templateUpdateSchema = {
+	type: 'object',
+	properties: {
+		category: {
+			type: 'string',
+			enum: ['MARKETING', 'UTILITY', 'AUTHENTICATION'],
+			nullable: true,
+		},
+		components: {
+			type: 'array',
+			items: {
+				type: 'object',
+				properties: {
+					type: {
+						type: 'string',
+						enum: ['HEADER', 'BODY', 'FOOTER', 'BUTTONS'],
+					},
+					format: {
+						type: 'string',
+						enum: ['TEXT', 'IMAGE', 'VIDEO', 'DOCUMENT'],
+						nullable: true,
+					},
+					text: {
+						type: 'string',
+						nullable: true,
+					},
+					buttons: {
+						type: 'array',
+						items: {
+							type: 'object',
+							properties: {
+								type: {
+									type: 'string',
+									enum: ['QUICK_REPLY', 'URL', 'PHONE_NUMBER'],
+								},
+								text: {
+									type: 'string',
+								},
+								url: {
+									type: 'string',
+									nullable: true,
+								},
+								phone_number: {
+									type: 'string',
+									nullable: true,
+								},
+							},
+							required: ['type', 'text'],
+						},
+						nullable: true,
+					},
+				},
+				required: ['type'],
+			},
+			nullable: true,
+		},
+	},
+	minProperties: 1, // Must have at least one property to update
+}
+
 /** Compile schemas */
 const validateWhatsAppMessage = ajv.compile(whatsAppSendMessageSchema)
 const validateWhatsAppTyping = ajv.compile(whatsAppTypingSchema)
 const validateTemplate = ajv.compile(templateSchema)
+const validateTemplateUpdate = ajv.compile(templateUpdateSchema)
 
 /** Validation result interface */
 export interface ValidationResult<T> {
@@ -289,13 +351,25 @@ export function validateWhatsAppTypingRequest(
 export function validateTemplateData(
 	data: unknown
 ): ValidationResult<Template> {
-	const isValid = validateTemplate(data)
+	if (validateTemplate(data)) {
+		return { isValid: true, data: data as Template }
+	}
 	return {
-		isValid,
-		data: isValid ? (data as Template) : undefined,
-		errors: isValid
-			? undefined
-			: formatAjvErrors(validateTemplate.errors || []),
+		isValid: false,
+		errors: formatAjvErrors(validateTemplate.errors || []),
+	}
+}
+
+/** Validate template update data */
+export function validateTemplateUpdateData(
+	data: unknown
+): ValidationResult<Partial<Template>> {
+	if (validateTemplateUpdate(data)) {
+		return { isValid: true, data: data as Partial<Template> }
+	}
+	return {
+		isValid: false,
+		errors: formatAjvErrors(validateTemplateUpdate.errors || []),
 	}
 }
 

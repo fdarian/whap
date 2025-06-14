@@ -1,16 +1,19 @@
 import { Hono } from 'hono'
 import { validator } from 'hono/validator'
 import { templateStore } from '../store/template-store.ts'
-import type { Template } from '../store/template-store.ts'
-import type { WhatsAppErrorResponse } from '../types/api-types.ts'
+import type {
+	CreateTemplateRequest,
+	UpdateTemplateRequest,
+	WhatsAppErrorResponse,
+} from '../types/api-types.ts'
 import {
 	formatValidationErrorForAPI,
 	validateTemplateData,
+	validateTemplateUpdateData,
 } from '../utils/validator.ts'
-
 const templatesRouter = new Hono()
 
-/** Validation middleware for template requests */
+/** Validation middleware for template creation */
 const validateTemplate = validator('json', (value, c) => {
 	const result = validateTemplateData(value)
 	if (result.isValid && result.data) {
@@ -21,6 +24,27 @@ const validateTemplate = validator('json', (value, c) => {
 		result.errors || [{ path: 'root', message: 'Invalid template format' }]
 	)
 
+	return c.json(
+		{
+			error: {
+				message: errorMessage,
+				type: 'validation_error',
+				code: 400,
+			},
+		} as WhatsAppErrorResponse,
+		400
+	)
+})
+
+/** Validation middleware for template updates */
+const validateTemplateUpdate = validator('json', (value, c) => {
+	const result = validateTemplateUpdateData(value)
+	if (result.isValid && result.data) {
+		return result.data
+	}
+	const errorMessage = formatValidationErrorForAPI(
+		result.errors || [{ path: 'root', message: 'Invalid update format' }]
+	)
 	return c.json(
 		{
 			error: {
@@ -59,9 +83,8 @@ templatesRouter.get('/:businessAccountId/message_templates', (c) => {
 templatesRouter.post(
 	'/:businessAccountId/message_templates',
 	validateTemplate,
-	(c) => {
-		const { businessAccountId } = c.req.param()
-		const templateData = c.req.valid('json') as Template
+	async (c) => {
+		const templateData = c.req.valid('json') as CreateTemplateRequest
 
 		// Check if template already exists
 		const existingTemplate = templateStore.getTemplate(
@@ -72,17 +95,18 @@ templatesRouter.post(
 			return c.json(
 				{
 					error: {
-						message: `Template '${templateData.name}' already exists for language '${templateData.language}'`,
+						message: `Template '${templateData.name}' with language '${templateData.language}' already exists.`,
 						type: 'duplicate_template',
-						code: 409,
+						code: 132001,
 					},
 				} as WhatsAppErrorResponse,
 				409
 			)
 		}
 
-		// For this mock implementation, we'll simulate storing the template
-		// In a real implementation, this would create a file or save to database
+		// Add template to the store
+		await templateStore.addTemplate(templateData)
+
 		return c.json(
 			{
 				id: `${templateData.name}_${templateData.language}`,
@@ -128,46 +152,17 @@ templatesRouter.get(
 // POST /v22.0/{business-account-id}/message_templates/{template-name} - Update template
 templatesRouter.post(
 	'/:businessAccountId/message_templates/:templateName',
-	validateTemplate,
-	(c) => {
-		const { businessAccountId, templateName } = c.req.param()
-		const templateData = c.req.valid('json') as Template
+	validateTemplateUpdate,
+	async (c) => {
+		const { templateName } = c.req.param()
+		const updateData = c.req.valid('json') as UpdateTemplateRequest
+
+		// For updates, the language might be in the query or body, let's prioritize query
+		const language = c.req.query('language') || 'en_US' // Default or common language
 
 		// Check if template exists
-		const existingTemplate = templateStore.getTemplate(
-			templateName,
-			templateData.language
-		)
+		const existingTemplate = templateStore.getTemplate(templateName, language)
 		if (!existingTemplate) {
-			return c.json(
-				{
-					error: {
-						message: `Template '${templateName}' not found for language '${templateData.language}'`,
-						type: 'template_not_found',
-						code: 404,
-					},
-				} as WhatsAppErrorResponse,
-				404
-			)
-		}
-
-		// For this mock implementation, we'll simulate updating the template
-		return c.json({
-			success: true,
-			id: `${templateName}_${templateData.language}`,
-		})
-	}
-)
-
-// DELETE /v22.0/{business-account-id}/message_templates/{template-name} - Delete template
-templatesRouter.delete(
-	'/:businessAccountId/message_templates/:templateName',
-	(c) => {
-		const { businessAccountId, templateName } = c.req.param()
-		const language = c.req.query('language') || 'en'
-
-		const template = templateStore.getTemplate(templateName, language)
-		if (!template) {
 			return c.json(
 				{
 					error: {
@@ -180,7 +175,51 @@ templatesRouter.delete(
 			)
 		}
 
-		// For this mock implementation, we'll simulate deleting the template
+		// Update the template
+		await templateStore.updateTemplate(templateName, language, updateData)
+
+		return c.json({
+			success: true,
+			id: `${templateName}_${language}`,
+		})
+	}
+)
+
+// DELETE /v22.0/{business-account-id}/message_templates/{template-name} - Delete template
+templatesRouter.delete(
+	'/:businessAccountId/message_templates/:templateName',
+	async (c) => {
+		const { templateName } = c.req.param()
+		const language = c.req.query('language')
+
+		if (!language) {
+			return c.json(
+				{
+					error: {
+						message: 'Language query parameter is required for deletion.',
+						type: 'validation_error',
+						code: 400,
+					},
+				} as WhatsAppErrorResponse,
+				400
+			)
+		}
+
+		const success = await templateStore.deleteTemplate(templateName, language)
+
+		if (!success) {
+			return c.json(
+				{
+					error: {
+						message: `Template '${templateName}' not found for language '${language}'`,
+						type: 'template_not_found',
+						code: 404,
+					},
+				} as WhatsAppErrorResponse,
+				404
+			)
+		}
+
 		return c.json({
 			success: true,
 		})

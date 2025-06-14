@@ -10,6 +10,7 @@ import {
 	test,
 	vi,
 } from 'vitest'
+import { createAuthMiddleware, rateLimiter } from '../middleware/auth.ts'
 import { type StoredMessage, mockStore } from '../store/memory-store.ts'
 import { templateStore } from '../store/template-store.ts'
 import type {
@@ -25,18 +26,25 @@ describe('Messages API Integration Tests', () => {
 	const baseUrl = 'http://localhost:3014'
 	const mockWebhookUrl = 'http://localhost:3015/webhook'
 	const testPhoneId = '12345678901'
+	const testToken = 'test-token'
 
 	// Store received webhook payloads for verification
 	const receivedWebhooks: unknown[] = []
 
 	beforeAll(async () => {
-		// Set environment variable for webhook URL
+		// Set environment variables BEFORE creating middleware
 		process.env.WEBHOOK_URL = mockWebhookUrl
+		process.env.MOCK_API_TOKENS = testToken
+		// Set rate limiting for tests: 3 requests per 5 seconds
+		process.env.RATE_LIMIT_MAX_REQUESTS = '3'
+		process.env.RATE_LIMIT_WINDOW_MS = '5000'
 
 		// Set up test messages server
 		const app = new Hono()
 		app.use('*', cors())
-		app.route('/v22.0/:phoneNumberId', messagesRouter)
+		// Apply authentication middleware to protected routes
+		app.use('/v22.0/*', ...createAuthMiddleware())
+		app.route('/v22.0', messagesRouter)
 
 		server = serve({
 			fetch: app.fetch,
@@ -73,6 +81,7 @@ describe('Messages API Integration Tests', () => {
 		// Clear received webhooks and reset mocks before each test
 		receivedWebhooks.length = 0
 		vi.clearAllMocks()
+		rateLimiter.reset()
 	})
 
 	describe('POST /v22.0/{phone-number-id}/messages - Text Messages', () => {
@@ -90,6 +99,7 @@ describe('Messages API Integration Tests', () => {
 				method: 'POST',
 				headers: {
 					'Content-Type': 'application/json',
+					Authorization: `Bearer ${testToken}`,
 				},
 				body: JSON.stringify(textMessage),
 			})
@@ -128,6 +138,7 @@ describe('Messages API Integration Tests', () => {
 				method: 'POST',
 				headers: {
 					'Content-Type': 'application/json',
+					Authorization: `Bearer ${testToken}`,
 				},
 				body: JSON.stringify(invalidMessage),
 			})
@@ -167,6 +178,7 @@ describe('Messages API Integration Tests', () => {
 				method: 'POST',
 				headers: {
 					'Content-Type': 'application/json',
+					Authorization: `Bearer ${testToken}`,
 				},
 				body: JSON.stringify(templateMessage),
 			})
@@ -212,6 +224,7 @@ describe('Messages API Integration Tests', () => {
 				method: 'POST',
 				headers: {
 					'Content-Type': 'application/json',
+					Authorization: `Bearer ${testToken}`,
 				},
 				body: JSON.stringify(invalidTemplateMessage),
 			})
@@ -221,6 +234,84 @@ describe('Messages API Integration Tests', () => {
 			const data = (await response.json()) as WhatsAppErrorResponse
 			expect(data.error.type).toBe('template_error')
 			expect(data.error.message).toContain('not found')
+		})
+	})
+
+	describe('Authentication and Rate Limiting', () => {
+		test('should return 401 for missing auth token', async () => {
+			const textMessage: WhatsAppSendMessageRequest = {
+				messaging_product: 'whatsapp',
+				to: '1234567890',
+				type: 'text',
+				text: {
+					body: 'This should fail',
+				},
+			}
+
+			const response = await fetch(`${baseUrl}/v22.0/${testPhoneId}/messages`, {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify(textMessage),
+			})
+
+			expect(response.status).toBe(401)
+		})
+
+		test('should return 401 for invalid auth token', async () => {
+			const textMessage: WhatsAppSendMessageRequest = {
+				messaging_product: 'whatsapp',
+				to: '1234567890',
+				type: 'text',
+				text: {
+					body: 'This should also fail',
+				},
+			}
+
+			const response = await fetch(`${baseUrl}/v22.0/${testPhoneId}/messages`, {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/json',
+					Authorization: 'Bearer invalid-token',
+				},
+				body: JSON.stringify(textMessage),
+			})
+
+			expect(response.status).toBe(401)
+		})
+
+		test('should trigger rate limiting', async () => {
+			const textMessage: WhatsAppSendMessageRequest = {
+				messaging_product: 'whatsapp',
+				to: '1234567890',
+				type: 'text',
+				text: {
+					body: 'Rate limit test',
+				},
+			}
+
+			// Exceed rate limit (test config: 3 requests per 5 seconds)
+			for (let i = 0; i < 3; i++) {
+				await fetch(`${baseUrl}/v22.0/${testPhoneId}/messages`, {
+					method: 'POST',
+					headers: {
+						'Content-Type': 'application/json',
+						Authorization: `Bearer ${testToken}`,
+					},
+					body: JSON.stringify(textMessage),
+				})
+			}
+
+			// This 4th request should be rate limited
+			const response = await fetch(`${baseUrl}/v22.0/${testPhoneId}/messages`, {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/json',
+					Authorization: `Bearer ${testToken}`,
+				},
+				body: JSON.stringify(textMessage),
+			})
+
+			expect(response.status).toBe(429)
 		})
 	})
 
@@ -252,6 +343,7 @@ describe('Messages API Integration Tests', () => {
 				method: 'POST',
 				headers: {
 					'Content-Type': 'application/json',
+					Authorization: `Bearer ${testToken}`,
 				},
 				body: JSON.stringify(templateMessage),
 			})
@@ -281,6 +373,7 @@ describe('Messages API Integration Tests', () => {
 				method: 'POST',
 				headers: {
 					'Content-Type': 'application/json',
+					Authorization: `Bearer ${testToken}`,
 				},
 				body: 'invalid json',
 			})
@@ -307,6 +400,7 @@ describe('Messages API Integration Tests', () => {
 				method: 'POST',
 				headers: {
 					'Content-Type': 'application/json',
+					Authorization: `Bearer ${testToken}`,
 				},
 				body: JSON.stringify(textMessage),
 			})

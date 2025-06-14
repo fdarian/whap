@@ -226,3 +226,26 @@ export function setWebhookUrl(phoneNumber: string, url: string): void {
 	}
 	config.mappings.set(phoneNumber, url)
 }
+
+/**
+ * Retrieves the allowed API tokens from environment variables.
+ * @returns {string[]} An array of allowed tokens.
+ */
+export function getAllowedTokens(): string[] {
+	const tokens = process.env.MOCK_API_TOKENS || ''
+	return tokens.split(',').filter(Boolean)
+}
+
+/**
+ * Retrieves the rate limit configuration from environment variables.
+ * @returns {{windowMs: number, maxRequests: number}} The rate limit configuration.
+ */
+export function getRateLimitConfig(): {
+	windowMs: number
+	maxRequests: number
+} {
+	return {
+		windowMs: Number(process.env.RATE_LIMIT_WINDOW_MS) || 60000, // 1 minute
+		maxRequests: Number(process.env.RATE_LIMIT_MAX_REQUESTS) || 100, // 100 requests per window
+	}
+}

@@ -6,6 +6,7 @@ import { Hono } from 'hono'
 import { cors } from 'hono/cors'
 import { logger } from 'hono/logger'
 import { getMediaConfig, getWebhookConfig } from './config.ts'
+import { createAuthMiddleware } from './middleware/auth.ts'
 import { conversationRouter } from './routes/conversation.ts'
 import { mediaRouter } from './routes/media.ts'
 import { messagesRouter } from './routes/messages.ts'
@@ -136,6 +137,10 @@ if (process.env.NODE_ENV !== 'production') {
 		}
 	})
 }
+
+// Apply authentication middleware to protected routes
+app.use('/v22.0/*', ...createAuthMiddleware())
+
 app.route('/v22.0', messagesRouter)
 app.route('/v22.0', templatesRouter)
 app.route('/v22.0', mediaRouter)
