@@ -1,10 +1,11 @@
 import 'dotenv/config'
+import { mkdir } from 'node:fs/promises'
 import { serve } from '@hono/node-server'
 import { createNodeWebSocket } from '@hono/node-ws'
 import { Hono } from 'hono'
 import { cors } from 'hono/cors'
 import { logger } from 'hono/logger'
-import { getWebhookConfig } from './config.ts'
+import { getMediaConfig, getWebhookConfig } from './config.ts'
 import { conversationRouter } from './routes/conversation.ts'
 import { messagesRouter } from './routes/messages.ts'
 import { statusRouter } from './routes/status.ts'
@@ -18,6 +19,33 @@ const PORT = Number(process.env.PORT) || 3010
 
 // Initialize webhook configuration from CLI arguments and environment
 getWebhookConfig()
+
+// Initialize media directories
+async function initializeMediaDirectories() {
+	const mediaConfig = getMediaConfig()
+
+	try {
+		await mkdir(mediaConfig.uploadsDir, { recursive: true })
+		await mkdir(mediaConfig.tempDir, { recursive: true })
+		console.log('📁 Created media directories:')
+		console.log(`   - Uploads: ${mediaConfig.uploadsDir}`)
+		console.log(`   - Temp: ${mediaConfig.tempDir}`)
+		console.log(
+			`   - Max file size: ${(mediaConfig.maxFileSize / 1024 / 1024).toFixed(1)}MB`
+		)
+		console.log(
+			`   - Allowed extensions: ${mediaConfig.allowedExtensions.join(', ')}`
+		)
+	} catch (error) {
+		console.error('❌ Failed to create media directories:', error)
+		throw error
+	}
+}
+
+// Initialize media directories
+initializeMediaDirectories().catch((error) => {
+	console.error('❌ Failed to initialize media directories:', error)
+})
 
 // Initialize template store with hot-reload
 templateStore.initialize().catch((error) => {
@@ -62,6 +90,13 @@ app.get('/health', (c) =>
 		ok: true,
 		message: 'Server is healthy',
 		templates: templateStore.getStats(),
+		media: {
+			config: getMediaConfig(),
+			stats: {
+				// This will be populated when we have media files
+				totalFiles: 0,
+			},
+		},
 	})
 )
 

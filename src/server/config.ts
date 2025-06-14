@@ -3,6 +3,21 @@ export interface WebhookConfig {
 	fallbackUrl: string | null
 }
 
+export interface MediaConfig {
+	/** Base directory for media storage */
+	baseDir: string
+	/** Directory for uploaded files */
+	uploadsDir: string
+	/** Directory for temporary files */
+	tempDir: string
+	/** Maximum file size in bytes (default: 10MB) */
+	maxFileSize: number
+	/** Allowed file extensions */
+	allowedExtensions: string[]
+	/** Allowed MIME types */
+	allowedMimeTypes: string[]
+}
+
 /**
  * Parse CLI arguments for webhook URL mappings
  * Format: --webhook-url phone:url
@@ -77,8 +92,79 @@ function initializeWebhookConfig(): WebhookConfig {
 	}
 }
 
-// Global configuration instance
+/**
+ * Initialize media configuration with default values
+ */
+function initializeMediaConfig(): MediaConfig {
+	const baseDir = process.env.MEDIA_DIR || './media'
+	const maxFileSizeMB = process.env.MAX_FILE_SIZE_MB
+		? Number.parseInt(process.env.MAX_FILE_SIZE_MB)
+		: 10
+
+	return {
+		baseDir,
+		uploadsDir: `${baseDir}/uploads`,
+		tempDir: `${baseDir}/temp`,
+		maxFileSize: maxFileSizeMB * 1024 * 1024, // Convert MB to bytes
+		allowedExtensions: [
+			// Images
+			'.jpg',
+			'.jpeg',
+			'.png',
+			'.gif',
+			'.webp',
+			// Documents
+			'.pdf',
+			'.doc',
+			'.docx',
+			'.txt',
+			'.csv',
+			// Audio
+			'.mp3',
+			'.wav',
+			'.ogg',
+			'.m4a',
+			// Video
+			'.mp4',
+			'.mov',
+			'.avi',
+			'.webm',
+			// Other
+			'.zip',
+			'.rar',
+		],
+		allowedMimeTypes: [
+			// Images
+			'image/jpeg',
+			'image/png',
+			'image/gif',
+			'image/webp',
+			// Documents
+			'application/pdf',
+			'application/msword',
+			'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+			'text/plain',
+			'text/csv',
+			// Audio
+			'audio/mpeg',
+			'audio/wav',
+			'audio/ogg',
+			'audio/mp4',
+			// Video
+			'video/mp4',
+			'video/quicktime',
+			'video/x-msvideo',
+			'video/webm',
+			// Other
+			'application/zip',
+			'application/x-rar-compressed',
+		],
+	}
+}
+
+// Global configuration instances
 let webhookConfig: WebhookConfig | null = null
+const mediaConfig: MediaConfig = initializeMediaConfig()
 
 /**
  * Get the global webhook configuration (lazy initialization)
@@ -88,6 +174,13 @@ export function getWebhookConfig(): WebhookConfig {
 		webhookConfig = initializeWebhookConfig()
 	}
 	return webhookConfig
+}
+
+/**
+ * Get the global media configuration
+ */
+export function getMediaConfig(): MediaConfig {
+	return mediaConfig
 }
 
 /**
