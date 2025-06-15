@@ -1,26 +1,30 @@
 import { format } from 'date-fns'
 import { Box, Text, useInput } from 'ink'
 import { type FC, useCallback, useEffect, useState } from 'react'
-import type { ApiClient, Message, Template } from '../utils/api-client.ts'
+import type { ApiClient, Message } from '../utils/api-client.ts'
 import { useTerminal } from '../utils/terminal.ts'
 import { webSocketClient } from '../utils/websocket-client.ts'
-import { TemplateVariableCollector } from './TemplateVariableCollector.tsx'
 import { TextInput } from './TextInput.tsx'
 
 interface SimplifiedChatInterfaceProps {
 	apiClient: ApiClient
-	userPhoneNumber: string
-	botPhoneNumber: string
+	userPhoneNumber?: string
+	botPhoneNumber?: string
+	onSetupComplete: (userNumber: string, botNumber: string) => void
 	onNewConversation: () => void
+	isConnected: boolean
 }
 
-type InterfaceMode = 'chat' | 'templates' | 'template-params'
+type SetupStage = 'user-phone' | 'bot-phone' | 'complete'
+type FileUploadStage = 'path' | 'caption' | 'uploading' | 'idle'
 
 export const SimplifiedChatInterface: FC<SimplifiedChatInterfaceProps> = ({
 	apiClient,
 	userPhoneNumber,
 	botPhoneNumber,
+	onSetupComplete,
 	onNewConversation,
+	isConnected,
 }) => {
 	const [messages, setMessages] = useState<Message[]>([])
 	const [loading, setLoading] = useState(false)
@@ -32,29 +36,70 @@ export const SimplifiedChatInterface: FC<SimplifiedChatInterfaceProps> = ({
 	const [errorMessage, setErrorMessage] = useState('')
 	const [isAgentTyping, setIsAgentTyping] = useState(false)
 
-	// Template-related state
-	const [mode, setMode] = useState<InterfaceMode>('chat')
-	const [templates, setTemplates] = useState<Template[]>([])
-	const [selectedTemplateIndex, setSelectedTemplateIndex] = useState(0)
-	const [selectedTemplate, setSelectedTemplate] = useState<Template | null>(
-		null
+	const [showCommandPalette, setShowCommandPalette] = useState(false)
+
+	// Setup-related state for progressive prompts
+	const [setupStage, setSetupStage] = useState<SetupStage>(
+		userPhoneNumber && botPhoneNumber ? 'complete' : 'user-phone'
 	)
-	const [templateParams, setTemplateParams] = useState<Record<string, string>>(
-		{}
-	)
-	const [templatesLoading, setTemplatesLoading] = useState(false)
+	const [tempUserPhone, setTempUserPhone] = useState('')
+	const [tempBotPhone, setTempBotPhone] = useState('')
+
+	// File upload state for progressive prompts
+	const [fileUploadStage, setFileUploadStage] =
+		useState<FileUploadStage>('idle')
+	const [tempFilePath, setTempFilePath] = useState('')
+	const [tempFileCaption, setTempFileCaption] = useState('')
+	const [systemMessages, setSystemMessages] = useState<
+		Array<{
+			id: string
+			text: string
+			timestamp: Date
+			type: 'system'
+		}>
+	>([])
 
 	const terminal = useTerminal()
 
-	// Calculate max messages based on available space - conservative approach
-	const calculateMaxMessages = useCallback(() => {
-		// Reserve space for header (3 lines) + input area (4 lines) + margins
-		const availableLines = Math.max(5, terminal.rows - 10)
-		// Each message takes roughly 2-3 lines, so divide by 3 for safety
-		return Math.max(3, Math.floor(availableLines / 3))
-	}, [terminal.rows])
+	// Validation functions for setup
+	const validateUserPhoneNumber = (phone: string): boolean => {
+		// Indonesian phone number format: starts with 62, followed by 8-12 digits
+		const phoneRegex = /^62\d{8,12}$/
+		return phoneRegex.test(phone.trim())
+	}
+
+	const validateBotPhoneNumberId = (phoneId: string): boolean => {
+		// Check if input contains only numbers
+		return /^\d+$/.test(phoneId.trim())
+	}
+
+	const addSystemMessage = useCallback((text: string) => {
+		const systemMessage = {
+			id: `system-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+			text,
+			timestamp: new Date(),
+			type: 'system' as const,
+		}
+		setSystemMessages((prev) => [...prev, systemMessage])
+	}, [])
+
+	// Initialize system messages on setup start
+	useEffect(() => {
+		if (setupStage === 'user-phone' && systemMessages.length === 0) {
+			addSystemMessage(
+				'WhatsApp CLI started. Type /help for available commands.'
+			)
+			addSystemMessage(
+				"Let's get you set up. What's your phone number? (Indonesian format, e.g. 6281234567890)"
+			)
+		}
+	}, [setupStage, systemMessages.length, addSystemMessage])
+
+	// No message limits - show full conversation history
 
 	const loadConversation = useCallback(async () => {
+		if (!userPhoneNumber || !botPhoneNumber) return
+
 		setLoading(true)
 		setError('')
 
@@ -105,74 +150,186 @@ export const SimplifiedChatInterface: FC<SimplifiedChatInterfaceProps> = ({
 	}, [loadConversation, botPhoneNumber])
 
 	useInput((input, key) => {
-		if (mode === 'chat') {
-			if (key.return && currentMessage.trim()) {
-				void handleSendMessage() // fire-and-forget
+		if (key.return && currentMessage.trim()) {
+			// Handle setup stages
+			if (setupStage === 'user-phone') {
+				void handleUserPhoneInput(currentMessage)
+				return
+			}
+			if (setupStage === 'bot-phone') {
+				void handleBotPhoneInput(currentMessage)
 				return
 			}
 
-			if (key.ctrl && input === 'r') {
-				loadConversation()
+			// Handle file upload stages
+			if (fileUploadStage === 'path') {
+				void handleFilePathInput(currentMessage)
+				return
+			}
+			if (fileUploadStage === 'caption') {
+				void handleFileCaptionInput(currentMessage)
+				return
 			}
 
-			if (key.ctrl && input === 'n') {
-				onNewConversation()
+			// Normal chat mode
+			if (currentMessage.startsWith('/')) {
+				void handleSlashCommand(currentMessage)
+			} else {
+				void handleSendMessage() // fire-and-forget
 			}
+			return
+		}
 
-			if (key.ctrl && input === 't') {
-				void handleTemplateMode()
-			}
-		} else if (mode === 'templates') {
-			if (key.upArrow && selectedTemplateIndex > 0) {
-				setSelectedTemplateIndex(selectedTemplateIndex - 1)
-			}
+		if (key.ctrl && input === 'r') {
+			loadConversation()
+		}
 
-			if (key.downArrow && selectedTemplateIndex < templates.length - 1) {
-				setSelectedTemplateIndex(selectedTemplateIndex + 1)
-			}
+		if (key.ctrl && input === 'n') {
+			onNewConversation()
+		}
 
-			if (key.return && templates[selectedTemplateIndex]) {
-				handleSelectTemplate(templates[selectedTemplateIndex])
-			}
-
-			if (key.escape) {
-				setMode('chat')
-			}
-		} else if (mode === 'template-params') {
-			// Template parameter input is now handled by TemplateVariableCollector
-			// No additional input handling needed here
+		// Escape key to cancel file upload
+		if (key.escape && fileUploadStage !== 'idle') {
+			addSystemMessage('❌ File upload cancelled.')
+			setFileUploadStage('idle')
+			setTempFilePath('')
+			setTempFileCaption('')
+			setCurrentMessage('')
 		}
 	})
 
-	const handleTemplateMode = async () => {
-		setMode('templates')
-		setTemplatesLoading(true)
-		try {
-			const fetchedTemplates = await apiClient.getTemplates()
-			setTemplates(fetchedTemplates)
-			setSelectedTemplateIndex(0)
-		} catch (error) {
-			setError('Failed to load templates')
-		} finally {
-			setTemplatesLoading(false)
+	const handleUserPhoneInput = async (phoneNumber: string) => {
+		// Add user input to system messages
+		const userMessage = {
+			id: `user-input-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+			text: phoneNumber,
+			timestamp: new Date(),
+			type: 'user' as const,
 		}
+		setSystemMessages((prev) => [...prev, { ...userMessage, type: 'system' }])
+		setCurrentMessage('')
+
+		if (!validateUserPhoneNumber(phoneNumber)) {
+			addSystemMessage(
+				'Invalid format. Please use Indonesian format (62xxxxxxxxxx)'
+			)
+			return
+		}
+
+		setTempUserPhone(phoneNumber.trim())
+		addSystemMessage("Great! What's your bot's phone number ID?")
+		setSetupStage('bot-phone')
 	}
 
-	const handleSelectTemplate = (template: Template) => {
-		setSelectedTemplate(template)
-		setTemplateParams({})
+	const handleBotPhoneInput = async (phoneId: string) => {
+		// Add user input to system messages
+		const userMessage = {
+			id: `bot-input-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+			text: phoneId,
+			timestamp: new Date(),
+			type: 'user' as const,
+		}
+		setSystemMessages((prev) => [...prev, { ...userMessage, type: 'system' }])
+		setCurrentMessage('')
 
-		if (template.variables && Object.keys(template.variables).length > 0) {
-			// Template has parameters, switch to parameter input mode
-			setMode('template-params')
-		} else {
-			// No parameters needed, send immediately using new handler
-			void handleTemplateVariablesComplete({})
+		if (!validateBotPhoneNumberId(phoneId)) {
+			addSystemMessage(
+				'Invalid phone number ID format. Use format: 6286777363432'
+			)
+			return
+		}
+
+		setTempBotPhone(phoneId.trim())
+		addSystemMessage('✓ Connected! You can now start sending messages.')
+		setSetupStage('complete')
+		onSetupComplete(tempUserPhone, phoneId.trim())
+	}
+
+	const handleFilePathInput = async (filePath: string) => {
+		// Add user input to system messages
+		const userMessage = {
+			id: `file-path-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+			text: filePath,
+			timestamp: new Date(),
+			type: 'user' as const,
+		}
+		setSystemMessages((prev) => [...prev, { ...userMessage, type: 'system' }])
+		setCurrentMessage('')
+
+		// Basic validation - check if file path is provided
+		if (!filePath.trim()) {
+			addSystemMessage(
+				'File path cannot be empty. Please provide a valid file path.'
+			)
+			return
+		}
+
+		// Store file path and move to caption stage
+		setTempFilePath(filePath.trim())
+		addSystemMessage(
+			'Enter a caption for the file (optional, press Enter to skip):'
+		)
+		setFileUploadStage('caption')
+	}
+
+	const handleFileCaptionInput = async (caption: string) => {
+		// Add user input to system messages (even if empty)
+		const userMessage = {
+			id: `file-caption-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+			text: caption || '(no caption)',
+			timestamp: new Date(),
+			type: 'user' as const,
+		}
+		setSystemMessages((prev) => [...prev, { ...userMessage, type: 'system' }])
+		setCurrentMessage('')
+
+		// Store caption and proceed with upload
+		setTempFileCaption(caption.trim())
+		setFileUploadStage('uploading')
+		addSystemMessage('📤 Uploading file...')
+
+		// Attempt file upload
+		void handleFileUpload(tempFilePath, caption.trim())
+	}
+
+	const handleFileUpload = async (filePath: string, caption: string) => {
+		if (!userPhoneNumber || !botPhoneNumber) {
+			addSystemMessage('❌ Upload failed: Phone numbers not configured')
+			setFileUploadStage('idle')
+			return
+		}
+
+		try {
+			// TODO: Implement actual file upload via API client
+			// For now, simulate file upload
+			await new Promise((resolve) => setTimeout(resolve, 2000)) // Simulate upload delay
+
+			// Simulate file upload (since no real API endpoint exists yet)
+			const fileType = filePath.split('.').pop()?.toLowerCase() || 'file'
+			const fileName = filePath.split('/').pop() || filePath
+
+			// Send a text message indicating the file was uploaded
+			const fileMessage = `📎 File: ${fileName}${caption ? `\nCaption: ${caption}` : ''}`
+			await apiClient.sendMessage(userPhoneNumber, botPhoneNumber, fileMessage)
+
+			addSystemMessage('✅ File uploaded successfully!')
+
+			// Reload conversation to show the new message
+			await loadConversation()
+		} catch (error) {
+			addSystemMessage(
+				`❌ Upload failed: ${error instanceof Error ? error.message : 'Unknown error'}`
+			)
+		} finally {
+			// Reset file upload state
+			setFileUploadStage('idle')
+			setTempFilePath('')
+			setTempFileCaption('')
 		}
 	}
 
 	const handleSendMessage = async () => {
-		if (!currentMessage.trim()) return
+		if (!currentMessage.trim() || !userPhoneNumber || !botPhoneNumber) return
 
 		setStatus('sending')
 		setErrorMessage('')
@@ -201,7 +358,11 @@ export const SimplifiedChatInterface: FC<SimplifiedChatInterfaceProps> = ({
 		}
 	}
 
-	const renderMessage = (message: Message) => {
+	const renderMessage = (
+		message:
+			| Message
+			| { id: string; text: string; timestamp: Date; type: 'system' }
+	) => {
 		// Use local timezone
 		const now = new Date()
 		const msgDate = new Date(message.timestamp)
@@ -214,25 +375,37 @@ export const SimplifiedChatInterface: FC<SimplifiedChatInterfaceProps> = ({
 			? format(msgDate, 'HH:mm:ss')
 			: format(msgDate, 'MM/dd HH:mm')
 
-		const isOutgoing = message.direction === 'sent'
-		const messageText = message.text?.trim() || '(empty)'
+		// Handle system messages differently
+		if ('type' in message && message.type === 'system') {
+			const header = `${timestamp} System`
+			const indentation = '  ' // 2 spaces for indentation
+			return (
+				<Text key={message.id} color="gray" wrap="wrap">
+					<Text color="gray" dimColor>
+						{header}
+					</Text>
+					{`\n${indentation}${message.text}\n`}
+				</Text>
+			)
+		}
+
+		// Handle regular chat messages
+		const isOutgoing = (message as Message).direction === 'sent'
+		const messageText = (message as Message).text?.trim() || '(empty)'
 
 		// Simplified single-line format for outgoing/incoming
 		const prefix = isOutgoing ? 'You' : 'Bot'
 		const header = `${timestamp} ${prefix}`
 		const indentation = '  ' // 2 spaces for indentation
 
-		// By combining into a single Text component with explicit newlines and indentation,
-		// we give Ink's wrapping algorithm the best chance to work correctly.
+		// Just render as text - let terminal handle flow naturally
 		return (
-			<Box key={message.id} marginBottom={1}>
-				<Text color={isOutgoing ? 'cyan' : 'green'} wrap="wrap">
-					<Text color="gray" dimColor>
-						{header}
-					</Text>
-					{`\n${indentation}${messageText}`}
+			<Text key={message.id} color={isOutgoing ? 'cyan' : 'green'} wrap="wrap">
+				<Text color="gray" dimColor>
+					{header}
 				</Text>
-			</Box>
+				{`\n${indentation}${messageText}\n`}
+			</Text>
 		)
 	}
 
@@ -249,225 +422,142 @@ export const SimplifiedChatInterface: FC<SimplifiedChatInterfaceProps> = ({
 		}
 	}
 
-	const renderTemplateSelector = () => {
-		if (templatesLoading) {
-			return (
-				<Box justifyContent="center" paddingY={2}>
-					<Text color="yellow">Loading templates...</Text>
-				</Box>
-			)
-		}
+	const handleSlashCommand = async (command: string) => {
+		const cmd = command.toLowerCase().trim()
+		setCurrentMessage('')
+		setShowCommandPalette(false)
 
-		if (templates.length === 0) {
-			return (
-				<Box justifyContent="center" paddingY={2}>
-					<Text color="red">No templates available</Text>
-				</Box>
-			)
-		}
-
-		return (
-			<Box flexDirection="column">
-				<Box marginBottom={1}>
-					<Text color="cyan">
-						📋 Select a Template ({templates.length} available):
-					</Text>
-				</Box>
-
-				{templates.map((template, index) => (
-					<Box key={`${template.name}_${template.language}`} marginBottom={1}>
-						<Text
-							color={index === selectedTemplateIndex ? 'cyan' : 'white'}
-							backgroundColor={
-								index === selectedTemplateIndex ? 'blue' : undefined
-							}
-						>
-							{index === selectedTemplateIndex ? '▶ ' : '  '}
-							{template.name} ({template.category})
-						</Text>
-					</Box>
-				))}
-
-				<Box marginTop={1}>
-					<Text color="gray" dimColor>
-						↑/↓: Navigate | Enter: Select | Esc: Back to chat
-					</Text>
-				</Box>
-			</Box>
-		)
-	}
-
-	const handleTemplateVariablesComplete = async (
-		parameters: Record<string, string>
-	) => {
-		if (!selectedTemplate) return
-
-		setStatus('sending')
-		setErrorMessage('')
-
-		try {
-			const parameterArray = Object.entries(parameters)
-				.sort(([a], [b]) => Number.parseInt(a, 10) - Number.parseInt(b, 10))
-				.map(([, value]) => value)
-
-			await apiClient.sendTemplateMessage(
-				userPhoneNumber,
-				botPhoneNumber,
-				selectedTemplate.name,
-				parameterArray
-			)
-
-			setStatus('sent')
-			setMode('chat')
-			setSelectedTemplate(null)
-			setTemplateParams({})
-
-			// Reload conversation to show the new message
-			await loadConversation()
-
-			// Clear status after 2 seconds
-			setTimeout(() => {
-				setStatus('idle')
-			}, 2000)
-		} catch (error) {
-			setStatus('error')
-			setErrorMessage(
-				error instanceof Error ? error.message : 'Failed to send template'
-			)
+		switch (cmd) {
+			case '/help':
+				// Add help message to conversation
+				break
+			case '/new':
+				onNewConversation()
+				break
+			case '/refresh':
+				loadConversation()
+				break
+			case '/file':
+				// Start file upload process
+				if (setupStage !== 'complete') {
+					addSystemMessage(
+						'❌ Please complete setup first before uploading files.'
+					)
+					return
+				}
+				addSystemMessage('📁 File upload started. Enter the path to your file:')
+				setFileUploadStage('path')
+				break
+			default:
+				// Unknown command - could add to conversation as system message
+				break
 		}
 	}
 
-	const handleTemplateVariablesCancel = () => {
-		setMode('templates')
-		setSelectedTemplate(null)
-		setTemplateParams({})
+	// Monitor message input for slash commands
+	const handleMessageChange = (value: string) => {
+		setCurrentMessage(value)
+		setShowCommandPalette(value === '/' || value.startsWith('/'))
+	}
+
+	// Get context-aware placeholder text
+	const getPlaceholderText = () => {
+		// File upload stage takes precedence
+		if (fileUploadStage === 'path') {
+			return 'Enter file path (e.g., /path/to/file.jpg)'
+		}
+		if (fileUploadStage === 'caption') {
+			return 'Enter caption (optional)'
+		}
+		if (fileUploadStage === 'uploading') {
+			return 'Uploading...'
+		}
+
+		// Setup stage placeholders
+		switch (setupStage) {
+			case 'user-phone':
+				return 'Enter your phone number (e.g., 6286777363432)'
+			case 'bot-phone':
+				return 'Enter bot phone number ID (e.g., 6286777363433)'
+			case 'complete':
+				return 'Type your message...'
+			default:
+				return 'Type your message...'
+		}
 	}
 
 	return (
-		<Box flexDirection="column" height="100%">
-			{/* Main area */}
-			<Box flexDirection="column" flexGrow={1} paddingX={2} paddingY={1}>
-				{mode === 'templates' && renderTemplateSelector()}
-				{mode === 'template-params' && selectedTemplate && (
-					<TemplateVariableCollector
-						template={selectedTemplate}
-						onComplete={handleTemplateVariablesComplete}
-						onCancel={handleTemplateVariablesCancel}
-					/>
-				)}
+		<Box flexDirection="column" paddingBottom={3}>
+			{/* Conversation area - let content flow naturally */}
+			<Box flexDirection="column" paddingX={2}>
+				{loading && <Text color="yellow">Loading conversation...</Text>}
 
-				{mode === 'chat' && (
-					<>
-						{loading && (
-							<Box justifyContent="center" paddingY={2}>
-								<Text color="yellow">Loading conversation...</Text>
-							</Box>
-						)}
+				{error && <Text color="red">Error: {error}</Text>}
 
-						{error && (
-							<Box justifyContent="center" paddingY={2}>
-								<Text color="red">Error: {error}</Text>
-							</Box>
-						)}
+				{/* System messages first, then regular messages in chronological order */}
+				{systemMessages.map(renderMessage)}
+				{setupStage === 'complete' &&
+					messages
+						.slice()
+						.sort((a, b) => a.timestamp.getTime() - b.timestamp.getTime()) // Chronological order - oldest first, newest at bottom
+						.map(renderMessage)}
 
-						{!loading && messages.length === 0 && (
-							<Box
-								flexDirection="column"
-								alignItems="center"
-								justifyContent="center"
-								height="100%"
-							>
-								{/* Typing indicator for empty conversation */}
-								{isAgentTyping && (
-									<Box marginBottom={2}>
-										<Text color="green" dimColor>
-											🤖 Bot is typing...
-										</Text>
-									</Box>
-								)}
-
-								<Text color="gray" dimColor>
-									🚀 Ready to test your WhatsApp bot!
-								</Text>
-								<Box marginTop={1}>
-									<Text color="gray" dimColor>
-										Type a message below to send to your bot
-									</Text>
-								</Box>
-							</Box>
-						)}
-
-						{messages.length > 0 && (
-							<Box flexDirection="column">
-								<Box marginBottom={1}>
-									<Text color="gray" dimColor>
-										Conversation ({messages.length} messages) - newest first:
-									</Text>
-								</Box>
-
-								{/* Typing indicator */}
-								{isAgentTyping && (
-									<Box marginBottom={1}>
-										<Text color="green" dimColor>
-											🤖 Bot is typing...
-										</Text>
-									</Box>
-								)}
-
-								<Box flexDirection="column">
-									{messages
-										.slice()
-										.sort(
-											(a, b) => b.timestamp.getTime() - a.timestamp.getTime()
-										) // Newest first
-										.slice(0, calculateMaxMessages())
-										.map(renderMessage)}
-								</Box>
-								{messages.length > calculateMaxMessages() && (
-									<Box marginTop={1}>
-										<Text color="gray" dimColor>
-											... and {messages.length - calculateMaxMessages()} more
-											messages
-										</Text>
-									</Box>
-								)}
-							</Box>
-						)}
-					</>
+				{/* Typing indicator at bottom */}
+				{isAgentTyping && (
+					<Text color="green" dimColor>
+						🤖 Bot is typing...
+					</Text>
 				)}
 			</Box>
 
-			{/* Input area at bottom */}
-			{mode === 'chat' && (
-				<Box
-					flexDirection="column"
-					borderStyle="single"
-					borderColor="gray"
-					paddingX={2}
-					paddingY={1}
-				>
-					<Box justifyContent="space-between" marginBottom={1}>
-						<Text color="cyan">💬 Send message to bot:</Text>
-						{status !== 'idle' && renderStatusIndicator()}
-					</Box>
+			{/* Input area - minimal structure */}
+			<Box borderStyle="single" borderColor="gray" paddingX={1}>
+				<TextInput
+					value={currentMessage}
+					onChange={handleMessageChange}
+					placeholder={getPlaceholderText()}
+					focus={fileUploadStage !== 'uploading'}
+				/>
+			</Box>
 
-					<Box marginBottom={1}>
-						<TextInput
-							value={currentMessage}
-							onChange={setCurrentMessage}
-							placeholder="Type your message here..."
-							focus={true}
-						/>
-					</Box>
-
-					<Box justifyContent="space-between">
+			{/* Command palette - appears below input when typing slash commands (only in complete setup and not during file upload) */}
+			{showCommandPalette &&
+				setupStage === 'complete' &&
+				fileUploadStage === 'idle' && (
+					<Box paddingLeft={2} flexDirection="column">
 						<Text color="gray" dimColor>
-							Press Enter to send message
+							/help Show available commands
 						</Text>
 						<Text color="gray" dimColor>
-							Ctrl+R: Refresh | Ctrl+N: New Chat | Ctrl+T: Templates
+							/new Start new conversation
+						</Text>
+						<Text color="gray" dimColor>
+							/refresh Reload conversation history
+						</Text>
+						<Text color="gray" dimColor>
+							/file Upload file to bot
 						</Text>
 					</Box>
+				)}
+
+			{/* File upload help text */}
+			{(fileUploadStage === 'path' || fileUploadStage === 'caption') && (
+				<Box paddingX={1}>
+					<Text color="gray" dimColor>
+						{fileUploadStage === 'path'
+							? 'Enter file path | Esc: Cancel'
+							: 'Enter caption or press Enter to skip | Esc: Cancel'}
+					</Text>
+				</Box>
+			)}
+
+			{/* Status indicator - positioned at bottom right */}
+			{userPhoneNumber && botPhoneNumber && (
+				<Box justifyContent="flex-end" paddingRight={1}>
+					<Text color="gray" dimColor>
+						{userPhoneNumber} → {botPhoneNumber}{' '}
+						<Text color={isConnected ? 'green' : 'red'}>●</Text>
+					</Text>
 				</Box>
 			)}
 		</Box>
