@@ -9,18 +9,21 @@ import { TextInput } from './TextInput.tsx'
 
 interface SimplifiedChatInterfaceProps {
 	apiClient: ApiClient
-	userPhoneNumber: string
-	botPhoneNumber: string
+	userPhoneNumber?: string
+	botPhoneNumber?: string
+	onSetupComplete: (userNumber: string, botNumber: string) => void
 	onNewConversation: () => void
 	isConnected: boolean
 }
 
 type InterfaceMode = 'chat' | 'templates' | 'template-params'
+type SetupStage = 'user-phone' | 'bot-phone' | 'complete'
 
 export const SimplifiedChatInterface: FC<SimplifiedChatInterfaceProps> = ({
 	apiClient,
 	userPhoneNumber,
 	botPhoneNumber,
+	onSetupComplete,
 	onNewConversation,
 	isConnected,
 }) => {
@@ -47,11 +50,62 @@ export const SimplifiedChatInterface: FC<SimplifiedChatInterfaceProps> = ({
 	const [templatesLoading, setTemplatesLoading] = useState(false)
 	const [showCommandPalette, setShowCommandPalette] = useState(false)
 
+	// Setup-related state for progressive prompts
+	const [setupStage, setSetupStage] = useState<SetupStage>(
+		userPhoneNumber && botPhoneNumber ? 'complete' : 'user-phone'
+	)
+	const [tempUserPhone, setTempUserPhone] = useState('')
+	const [tempBotPhone, setTempBotPhone] = useState('')
+	const [systemMessages, setSystemMessages] = useState<
+		Array<{
+			id: string
+			text: string
+			timestamp: Date
+			type: 'system'
+		}>
+	>([])
+
 	const terminal = useTerminal()
+
+	// Validation functions for setup
+	const validateUserPhoneNumber = (phone: string): boolean => {
+		// Indonesian phone number format: starts with 62, followed by 8-12 digits
+		const phoneRegex = /^62\d{8,12}$/
+		return phoneRegex.test(phone.trim())
+	}
+
+	const validateBotPhoneNumberId = (phoneId: string): boolean => {
+		// Check if input contains only numbers
+		return /^\d+$/.test(phoneId.trim())
+	}
+
+	const addSystemMessage = useCallback((text: string) => {
+		const systemMessage = {
+			id: Date.now().toString(),
+			text,
+			timestamp: new Date(),
+			type: 'system' as const,
+		}
+		setSystemMessages((prev) => [...prev, systemMessage])
+	}, [])
+
+	// Initialize system messages on setup start
+	useEffect(() => {
+		if (setupStage === 'user-phone' && systemMessages.length === 0) {
+			addSystemMessage(
+				'WhatsApp CLI started. Type /help for available commands.'
+			)
+			addSystemMessage(
+				"Let's get you set up. What's your phone number? (Indonesian format, e.g. 6281234567890)"
+			)
+		}
+	}, [setupStage, systemMessages.length, addSystemMessage])
 
 	// No message limits - show full conversation history
 
 	const loadConversation = useCallback(async () => {
+		if (!userPhoneNumber || !botPhoneNumber) return
+
 		setLoading(true)
 		setError('')
 
@@ -104,6 +158,17 @@ export const SimplifiedChatInterface: FC<SimplifiedChatInterfaceProps> = ({
 	useInput((input, key) => {
 		if (mode === 'chat') {
 			if (key.return && currentMessage.trim()) {
+				// Handle setup stages
+				if (setupStage === 'user-phone') {
+					void handleUserPhoneInput(currentMessage)
+					return
+				}
+				if (setupStage === 'bot-phone') {
+					void handleBotPhoneInput(currentMessage)
+					return
+				}
+
+				// Normal chat mode
 				if (currentMessage.startsWith('/')) {
 					void handleSlashCommand(currentMessage)
 				} else {
@@ -145,6 +210,53 @@ export const SimplifiedChatInterface: FC<SimplifiedChatInterfaceProps> = ({
 		}
 	})
 
+	const handleUserPhoneInput = async (phoneNumber: string) => {
+		// Add user input to system messages
+		const userMessage = {
+			id: Date.now().toString(),
+			text: phoneNumber,
+			timestamp: new Date(),
+			type: 'user' as const,
+		}
+		setSystemMessages((prev) => [...prev, { ...userMessage, type: 'system' }])
+		setCurrentMessage('')
+
+		if (!validateUserPhoneNumber(phoneNumber)) {
+			addSystemMessage(
+				'Invalid format. Please use Indonesian format (62xxxxxxxxxx)'
+			)
+			return
+		}
+
+		setTempUserPhone(phoneNumber.trim())
+		addSystemMessage("Great! What's your bot's phone number ID?")
+		setSetupStage('bot-phone')
+	}
+
+	const handleBotPhoneInput = async (phoneId: string) => {
+		// Add user input to system messages
+		const userMessage = {
+			id: Date.now().toString(),
+			text: phoneId,
+			timestamp: new Date(),
+			type: 'user' as const,
+		}
+		setSystemMessages((prev) => [...prev, { ...userMessage, type: 'system' }])
+		setCurrentMessage('')
+
+		if (!validateBotPhoneNumberId(phoneId)) {
+			addSystemMessage(
+				'Invalid phone number ID format. Use format: 6286777363432'
+			)
+			return
+		}
+
+		setTempBotPhone(phoneId.trim())
+		addSystemMessage('✓ Connected! You can now start sending messages.')
+		setSetupStage('complete')
+		onSetupComplete(tempUserPhone, phoneId.trim())
+	}
+
 	const handleTemplateMode = async () => {
 		setMode('templates')
 		setTemplatesLoading(true)
@@ -173,7 +285,7 @@ export const SimplifiedChatInterface: FC<SimplifiedChatInterfaceProps> = ({
 	}
 
 	const handleSendMessage = async () => {
-		if (!currentMessage.trim()) return
+		if (!currentMessage.trim() || !userPhoneNumber || !botPhoneNumber) return
 
 		setStatus('sending')
 		setErrorMessage('')
@@ -202,7 +314,11 @@ export const SimplifiedChatInterface: FC<SimplifiedChatInterfaceProps> = ({
 		}
 	}
 
-	const renderMessage = (message: Message) => {
+	const renderMessage = (
+		message:
+			| Message
+			| { id: string; text: string; timestamp: Date; type: 'system' }
+	) => {
 		// Use local timezone
 		const now = new Date()
 		const msgDate = new Date(message.timestamp)
@@ -215,8 +331,23 @@ export const SimplifiedChatInterface: FC<SimplifiedChatInterfaceProps> = ({
 			? format(msgDate, 'HH:mm:ss')
 			: format(msgDate, 'MM/dd HH:mm')
 
-		const isOutgoing = message.direction === 'sent'
-		const messageText = message.text?.trim() || '(empty)'
+		// Handle system messages differently
+		if ('type' in message && message.type === 'system') {
+			const header = `${timestamp} System`
+			const indentation = '  ' // 2 spaces for indentation
+			return (
+				<Text key={message.id} color="gray" wrap="wrap">
+					<Text color="gray" dimColor>
+						{header}
+					</Text>
+					{`\n${indentation}${message.text}\n`}
+				</Text>
+			)
+		}
+
+		// Handle regular chat messages
+		const isOutgoing = (message as Message).direction === 'sent'
+		const messageText = (message as Message).text?.trim() || '(empty)'
 
 		// Simplified single-line format for outgoing/incoming
 		const prefix = isOutgoing ? 'You' : 'Bot'
@@ -298,7 +429,7 @@ export const SimplifiedChatInterface: FC<SimplifiedChatInterfaceProps> = ({
 	const handleTemplateVariablesComplete = async (
 		parameters: Record<string, string>
 	) => {
-		if (!selectedTemplate) return
+		if (!selectedTemplate || !userPhoneNumber || !botPhoneNumber) return
 
 		setStatus('sending')
 		setErrorMessage('')
@@ -371,6 +502,20 @@ export const SimplifiedChatInterface: FC<SimplifiedChatInterfaceProps> = ({
 		setShowCommandPalette(value === '/' || value.startsWith('/'))
 	}
 
+	// Get context-aware placeholder text
+	const getPlaceholderText = () => {
+		switch (setupStage) {
+			case 'user-phone':
+				return 'Enter your phone number (e.g., 6286777363432)'
+			case 'bot-phone':
+				return 'Enter bot phone number ID (e.g., 6286777363433)'
+			case 'complete':
+				return 'Type your message...'
+			default:
+				return 'Type your message...'
+		}
+	}
+
 	return (
 		<Box flexDirection="column">
 			{/* Conversation area - let content flow naturally */}
@@ -390,11 +535,13 @@ export const SimplifiedChatInterface: FC<SimplifiedChatInterfaceProps> = ({
 
 						{error && <Text color="red">Error: {error}</Text>}
 
-						{/* Messages flow naturally in chronological order */}
-						{messages
-							.slice()
-							.sort((a, b) => a.timestamp.getTime() - b.timestamp.getTime()) // Chronological order - oldest first, newest at bottom
-							.map(renderMessage)}
+						{/* System messages first, then regular messages in chronological order */}
+						{systemMessages.map(renderMessage)}
+						{setupStage === 'complete' &&
+							messages
+								.slice()
+								.sort((a, b) => a.timestamp.getTime() - b.timestamp.getTime()) // Chronological order - oldest first, newest at bottom
+								.map(renderMessage)}
 
 						{/* Typing indicator at bottom */}
 						{isAgentTyping && (
@@ -413,13 +560,13 @@ export const SimplifiedChatInterface: FC<SimplifiedChatInterfaceProps> = ({
 						<TextInput
 							value={currentMessage}
 							onChange={handleMessageChange}
-							placeholder="Type your message..."
+							placeholder={getPlaceholderText()}
 							focus={true}
 						/>
 					</Box>
 
-					{/* Command palette - appears below input when typing slash commands */}
-					{showCommandPalette && (
+					{/* Command palette - appears below input when typing slash commands (only in complete setup) */}
+					{showCommandPalette && setupStage === 'complete' && (
 						<>
 							<Text color="gray" dimColor>
 								/help Show available commands
@@ -437,9 +584,11 @@ export const SimplifiedChatInterface: FC<SimplifiedChatInterfaceProps> = ({
 					)}
 
 					{/* Status indicator - bottom right aligned */}
-					<Text color="gray" dimColor>
-						{userPhoneNumber.slice(-4)}...→{botPhoneNumber.slice(-4)}... ●
-					</Text>
+					{userPhoneNumber && botPhoneNumber && (
+						<Text color="gray" dimColor>
+							{userPhoneNumber.slice(-4)}...→{botPhoneNumber.slice(-4)}... ●
+						</Text>
+					)}
 				</>
 			)}
 		</Box>
