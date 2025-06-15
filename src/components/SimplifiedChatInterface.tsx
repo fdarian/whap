@@ -390,8 +390,13 @@ export const SimplifiedChatInterface: FC<SimplifiedChatInterfaceProps> = ({
 		}
 
 		// Handle regular chat messages
-		const isOutgoing = (message as Message).direction === 'sent'
-		const messageText = (message as Message).text?.trim() || '(empty)'
+		const msg = message as Message
+		const messageText = msg.text?.trim() || '(empty)'
+
+		// Determine if message is outgoing from CLI user's perspective
+		// If the message is FROM the user's phone number, it's outgoing (user sent it)
+		// If the message is FROM the bot's phone number, it's incoming (bot sent it)
+		const isOutgoing = msg.from === userPhoneNumber
 
 		// Simplified single-line format for outgoing/incoming
 		const prefix = isOutgoing ? 'You' : 'Bot'
