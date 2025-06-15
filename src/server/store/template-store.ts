@@ -1,7 +1,12 @@
 import { readFile, readdir } from 'node:fs/promises'
 import { join } from 'node:path'
 import type { FSWatcher } from 'chokidar'
-import type { Template, TemplateComponent } from '../types/api-types.ts'
+import type {
+	CreateTemplateRequest,
+	Template,
+	TemplateComponent,
+	UpdateTemplateRequest,
+} from '../types/api-types.ts'
 import { validateTemplateData } from '../utils/validator.ts'
 
 /** Auto-generate variables from template components */
@@ -257,18 +262,78 @@ export class TemplateStore {
 
 	/** Remove template by file path */
 	private removeTemplateByPath(filePath: string): void {
-		// Extract template name from file path for exact matching
 		const fileName = filePath.split('/').pop()?.replace('.json', '')
 		if (!fileName) return
 
-		// Find template by exact name match
-		for (const [key, template] of this.templates.entries()) {
-			if (template.name === fileName) {
-				this.templates.delete(key)
-				console.log(`🗑️  Removed template: ${key}`)
-				break
-			}
+		// Find template key by matching file name
+		const templateKey = Array.from(this.templates.keys()).find((key) =>
+			key.startsWith(fileName)
+		)
+
+		if (templateKey) {
+			this.templates.delete(templateKey)
+			console.log(`✅ Removed template: ${templateKey}`)
 		}
+	}
+
+	/**
+	 * Adds a new template to the store.
+	 * In a real application, this would also write to a file.
+	 */
+	async addTemplate(templateData: CreateTemplateRequest): Promise<Template> {
+		const template: Template = {
+			...templateData,
+			components: templateData.components || [],
+		}
+
+		// Simulate file writing for consistency, not actually writing
+		const processedTemplate = this.processTemplateData(template)
+		const templateKey = `${processedTemplate.name}_${processedTemplate.language}`
+		this.templates.set(templateKey, processedTemplate)
+
+		console.log(`✅ Added new template: ${templateKey}`)
+		return processedTemplate
+	}
+
+	/**
+	 * Updates an existing template.
+	 */
+	async updateTemplate(
+		name: string,
+		language: string,
+		updateData: UpdateTemplateRequest
+	): Promise<Template | null> {
+		const templateKey = `${name}_${language}`
+		const existingTemplate = this.templates.get(templateKey)
+
+		if (!existingTemplate) {
+			return null
+		}
+
+		const updatedTemplate: Template = {
+			...existingTemplate,
+			...updateData,
+			components: updateData.components || existingTemplate.components,
+		}
+
+		const processedTemplate = this.processTemplateData(updatedTemplate)
+		this.templates.set(templateKey, processedTemplate)
+
+		console.log(`🔄 Updated template: ${templateKey}`)
+		return processedTemplate
+	}
+
+	/**
+	 * Deletes a template from the store.
+	 */
+	async deleteTemplate(name: string, language: string): Promise<boolean> {
+		const templateKey = `${name}_${language}`
+		if (this.templates.has(templateKey)) {
+			this.templates.delete(templateKey)
+			console.log(`🗑️  Deleted template: ${templateKey}`)
+			return true
+		}
+		return false
 	}
 
 	/** Get template by name and language */

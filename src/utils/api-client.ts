@@ -281,4 +281,63 @@ export class ApiClient {
 			return null
 		}
 	}
+
+	/** Upload a media file to the WhatsApp API */
+	async uploadMediaFile(
+		phoneNumberId: string,
+		filePath: string,
+		caption?: string
+	): Promise<{ mediaId: string }> {
+		// Note: This method is prepared for when the server upload endpoint is implemented
+		// The actual server endpoint POST /v22.0/{phone-number-id}/media is not yet available
+
+		try {
+			// TODO: Replace with actual file upload when server endpoint is ready
+			// For now, throw an error to indicate the feature is not yet implemented
+			throw new Error('Media upload endpoint not yet implemented on server')
+
+			// Future implementation will look like:
+			// const formData = new FormData()
+			// formData.append('file', fileData)
+			// formData.append('type', mimeType)
+			// if (caption) formData.append('caption', caption)
+
+			// const response = await this.client
+			// 	.post(`v22.0/${phoneNumberId}/media`, {
+			// 		body: formData,
+			// 	})
+			// 	.json<{ id: string }>()
+
+			// return { mediaId: response.id }
+		} catch (error) {
+			console.error('Error uploading media file:', error)
+			throw error
+		}
+	}
+
+	/** Send a media message using an uploaded media ID */
+	async sendMediaMessage(
+		from: string,
+		to: string,
+		mediaId: string,
+		mediaType: 'image' | 'document' | 'audio' | 'video' | 'sticker',
+		caption?: string
+	): Promise<{ messageId: string }> {
+		const messageId = uuidv4()
+		const payload = {
+			messaging_product: 'whatsapp',
+			to,
+			type: mediaType,
+			[mediaType]: {
+				id: mediaId,
+				...(caption && { caption }),
+			},
+		}
+
+		await this.client.post(`v22.0/${from}/messages`, {
+			json: payload,
+		})
+
+		return { messageId }
+	}
 }

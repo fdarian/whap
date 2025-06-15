@@ -158,7 +158,9 @@ describe('Webhooks API Integration Tests', () => {
 			expect(message.from).toBe(simulateParams.from)
 			expect(message.id).toBe(simulateParams.message.id)
 			expect(message.type).toBe('text')
-			expect(message.text.body).toBe(simulateParams.message.text.body)
+			if (message.type === 'text' && simulateParams.message.type === 'text') {
+				expect(message.text.body).toBe(simulateParams.message.text.body)
+			}
 		})
 
 		test('should return error when from is missing', async () => {
@@ -236,8 +238,130 @@ describe('Webhooks API Integration Tests', () => {
 			expect(response.status).toBe(400)
 
 			const data = (await response.json()) as WhatsAppErrorResponse
-			expect(data.error.message).toBe('message.text.body is required')
+			expect(data.error.message).toBe(
+				'message.text.body is required for text messages'
+			)
 			expect(data.error.type).toBe('validation_error')
+		})
+
+		test('should simulate incoming media message webhook', async () => {
+			const simulateParams = {
+				from: '1234567890',
+				to: testPhoneId,
+				message: {
+					id: 'media_test_123',
+					type: 'image',
+					timestamp: '1234567890',
+					filePath: './test-image.png',
+					caption: 'Test image caption',
+				},
+			}
+
+			const response = await fetch(`${baseUrl}/simulate-message`, {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/json',
+				},
+				body: JSON.stringify(simulateParams),
+			})
+
+			expect(response.status).toBe(200)
+
+			const data = await response.json()
+			expect(data.success).toBe(true)
+			expect(data.messageId).toBeDefined()
+			expect(data.mediaId).toBeDefined()
+			expect(data.webhookUrl).toBe(mockWebhookUrl)
+
+			// Wait for webhook to be delivered
+			await new Promise((resolve) => setTimeout(resolve, 100))
+
+			// Verify webhook was received
+			expect(receivedWebhooks).toHaveLength(1)
+			const webhook = receivedWebhooks[0]
+
+			expect(webhook.object).toBe('whatsapp_business_account')
+			expect(webhook.entry).toHaveLength(1)
+			expect(webhook.entry[0].id).toBe(testPhoneId)
+			expect(webhook.entry[0].changes).toHaveLength(1)
+
+			const change = webhook.entry[0].changes[0]
+			expect(change.field).toBe('messages')
+			expect(change.value.messaging_product).toBe('whatsapp')
+			const valueWithMessages = change.value as {
+				messages: Array<{
+					from: string
+					id: string
+					type: string
+					image?: { id: string; mime_type: string; caption?: string }
+				}>
+			}
+			expect(valueWithMessages.messages).toHaveLength(1)
+
+			const message = valueWithMessages.messages[0]
+			expect(message.from).toBe(simulateParams.from)
+			expect(message.id).toBe(simulateParams.message.id)
+			expect(message.type).toBe('image')
+			expect(message.image).toBeDefined()
+			expect(message.image?.id).toBeDefined()
+			expect(message.image?.mime_type).toBe('image/png')
+			expect(message.image?.caption).toBe('Test image caption')
+		})
+
+		test('should return error when media message filePath is missing', async () => {
+			const invalidParams = {
+				from: '1234567890',
+				to: testPhoneId,
+				message: {
+					id: 'media_test_123',
+					type: 'image',
+					timestamp: '1234567890',
+					// Missing filePath for media message
+				},
+			}
+
+			const response = await fetch(`${baseUrl}/simulate-message`, {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/json',
+				},
+				body: JSON.stringify(invalidParams),
+			})
+
+			expect(response.status).toBe(400)
+
+			const data = (await response.json()) as WhatsAppErrorResponse
+			expect(data.error.message).toBe(
+				'message.filePath is required for media messages'
+			)
+			expect(data.error.type).toBe('validation_error')
+		})
+
+		test('should return error when media file does not exist', async () => {
+			const invalidParams = {
+				from: '1234567890',
+				to: testPhoneId,
+				message: {
+					id: 'media_test_123',
+					type: 'image',
+					timestamp: '1234567890',
+					filePath: './nonexistent-file.png',
+				},
+			}
+
+			const response = await fetch(`${baseUrl}/simulate-message`, {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/json',
+				},
+				body: JSON.stringify(invalidParams),
+			})
+
+			expect(response.status).toBe(400)
+
+			const data = (await response.json()) as WhatsAppErrorResponse
+			expect(data.error.message).toContain('File not found')
+			expect(data.error.type).toBe('file_error')
 		})
 
 		test('should return error when webhook URL is not configured', async () => {

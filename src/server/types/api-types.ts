@@ -27,6 +27,20 @@ export interface TemplateComponent {
 	}>
 }
 
+export interface CreateTemplateRequest {
+	name: string
+	language?: string
+	category?: 'MARKETING' | 'UTILITY' | 'AUTHENTICATION'
+	components: TemplateComponent[]
+}
+
+export interface UpdateTemplateRequest {
+	name?: string
+	language?: string
+	category?: 'MARKETING' | 'UTILITY' | 'AUTHENTICATION'
+	components?: TemplateComponent[]
+}
+
 export interface WhatsAppSendMessageRequest {
 	messaging_product: 'whatsapp'
 	to: string
@@ -95,12 +109,33 @@ export interface SimulateMessageParams {
 	to: string
 	message: {
 		id: string
-		type: 'text'
 		timestamp: string
-		text: {
-			body: string
-		}
-	}
+	} & (
+		| {
+				type: 'text'
+				text: {
+					body: string
+				}
+		  }
+		| {
+				type: 'image' | 'document' | 'audio' | 'video' | 'sticker'
+				filePath: string
+				caption?: string
+		  }
+	)
+}
+
+/** Media metadata stored in memory */
+export interface MediaMetadata {
+	id: string
+	originalPath: string
+	storedPath: string
+	filename: string
+	mimeType: string
+	size: number
+	type: 'image' | 'document' | 'audio' | 'video' | 'sticker'
+	caption?: string
+	timestamp: Date
 }
 
 /** Standard message status update payload */

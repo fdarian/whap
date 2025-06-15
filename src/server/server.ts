@@ -1,15 +1,18 @@
 import 'dotenv/config'
+import { mkdir } from 'node:fs/promises'
 import { serve } from '@hono/node-server'
 import { createNodeWebSocket } from '@hono/node-ws'
 import { Hono } from 'hono'
 import { cors } from 'hono/cors'
 import { logger } from 'hono/logger'
-import { getWebhookConfig } from './config.ts'
+import { getMediaConfig, getWebhookConfig } from './config.ts'
 import { conversationRouter } from './routes/conversation.ts'
+import { mediaRouter } from './routes/media.ts'
 import { messagesRouter } from './routes/messages.ts'
 import { statusRouter } from './routes/status.ts'
 import { templatesRouter } from './routes/templates.ts'
 import { webhooksRouter } from './routes/webhooks.ts'
+import { mockStore } from './store/memory-store.ts'
 import { templateStore } from './store/template-store.ts'
 import { addClient, removeClient } from './websocket.ts'
 
@@ -18,6 +21,33 @@ const PORT = Number(process.env.PORT) || 3010
 
 // Initialize webhook configuration from CLI arguments and environment
 getWebhookConfig()
+
+// Initialize media directories
+async function initializeMediaDirectories() {
+	const mediaConfig = getMediaConfig()
+
+	try {
+		await mkdir(mediaConfig.uploadsDir, { recursive: true })
+		await mkdir(mediaConfig.tempDir, { recursive: true })
+		console.log('📁 Created media directories:')
+		console.log(`   - Uploads: ${mediaConfig.uploadsDir}`)
+		console.log(`   - Temp: ${mediaConfig.tempDir}`)
+		console.log(
+			`   - Max file size: ${(mediaConfig.maxFileSize / 1024 / 1024).toFixed(1)}MB`
+		)
+		console.log(
+			`   - Allowed extensions: ${mediaConfig.allowedExtensions.join(', ')}`
+		)
+	} catch (error) {
+		console.error('❌ Failed to create media directories:', error)
+		throw error
+	}
+}
+
+// Initialize media directories
+initializeMediaDirectories().catch((error) => {
+	console.error('❌ Failed to initialize media directories:', error)
+})
 
 // Initialize template store with hot-reload
 templateStore.initialize().catch((error) => {
@@ -62,6 +92,15 @@ app.get('/health', (c) =>
 		ok: true,
 		message: 'Server is healthy',
 		templates: templateStore.getStats(),
+		media: {
+			config: getMediaConfig(),
+			stats: {
+				totalFiles: mockStore.getAllMediaFiles().length,
+				totalSize: mockStore
+					.getAllMediaFiles()
+					.reduce((total, file) => total + file.fileSize, 0),
+			},
+		},
 	})
 )
 
@@ -97,8 +136,13 @@ if (process.env.NODE_ENV !== 'production') {
 		}
 	})
 }
+
+// Authentication disabled for mock development server
+// app.use('/v22.0/*', ...createAuthMiddleware())
+
 app.route('/v22.0', messagesRouter)
 app.route('/v22.0', templatesRouter)
+app.route('/v22.0', mediaRouter)
 // The /mock path is for internal simulation tools
 app.route('/mock', webhooksRouter)
 app.route('/status', statusRouter)

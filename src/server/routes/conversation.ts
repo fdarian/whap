@@ -95,7 +95,7 @@ conversationRouter.get('/', (c) => {
 			id: msg.id,
 			to: msg.to,
 			from: msg.from,
-			text: msg.text.body || '',
+			text: msg.text?.body || '',
 			timestamp: msg.timestamp,
 			direction: 'received' as const,
 		}

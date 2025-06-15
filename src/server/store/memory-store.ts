@@ -1,4 +1,5 @@
 import type {
+	MediaMetadata,
 	SimulateMessageParams,
 	WebhookConfiguration,
 } from '../types/api-types.ts'
@@ -34,7 +35,9 @@ export interface StoredWebhookMessage {
 	from: string
 	to: string
 	phoneNumberId: string
-	text: { body: string }
+	type: 'text' | 'image' | 'document' | 'audio' | 'video' | 'sticker'
+	text?: { body: string }
+	media?: MediaMetadata
 	timestamp: Date
 	processed: boolean
 }
@@ -47,6 +50,32 @@ export interface WebhookEvent {
 	status: 'pending' | 'delivered' | 'failed'
 }
 
+export interface MediaFile {
+	/** Unique identifier for the media file */
+	id: string
+	/** Original filename */
+	filename: string
+	/** File path relative to media directory */
+	filePath: string
+	/** MIME type of the file */
+	mimeType: string
+	/** File size in bytes */
+	fileSize: number
+	/** Associated phone number ID */
+	phoneNumberId: string
+	/** Upload timestamp */
+	uploadTimestamp: Date
+	/** Status of the media file */
+	status: 'uploading' | 'uploaded' | 'processed' | 'failed'
+	/** Optional metadata */
+	metadata?: {
+		originalName?: string
+		width?: number
+		height?: number
+		duration?: number
+	}
+}
+
 class MemoryStore {
 	private messages: Map<string, StoredMessage> = new Map()
 	private webhookMessages: Map<string, StoredWebhookMessage> = new Map()
@@ -56,6 +85,7 @@ class MemoryStore {
 		string,
 		{ messageId: string; isTyping: boolean; timestamp: number }
 	> = new Map()
+	private mediaFiles: Map<string, MediaFile> = new Map()
 	private messageIdCounter = 1
 
 	// Generate realistic WhatsApp message ID
@@ -90,7 +120,23 @@ class MemoryStore {
 			from: params.from,
 			to: params.to,
 			phoneNumberId: params.to, // In WhatsApp, 'to' is the bot's phone number ID
-			text: params.message.text,
+			type: params.message.type,
+			...(params.message.type === 'text' && {
+				text: params.message.text,
+			}),
+			...(params.message.type !== 'text' && {
+				media: {
+					id: params.message.id,
+					originalPath: params.message.filePath,
+					storedPath: params.message.filePath,
+					filename: params.message.filePath.split('/').pop() || 'unknown',
+					mimeType: this.getMimeTypeFromPath(params.message.filePath),
+					size: 0, // To be filled when actual file is processed
+					type: params.message.type,
+					caption: params.message.caption,
+					timestamp: new Date(),
+				},
+			}),
 			timestamp: new Date(), // Always use server time for consistency
 			processed: false,
 		}
@@ -283,6 +329,92 @@ class MemoryStore {
 		return clearedIndicators
 	}
 
+	// Media file management
+	/** Generate unique media file ID */
+	generateMediaId(): string {
+		const timestamp = Date.now().toString()
+		const random = Math.random().toString(36).substring(2, 15)
+		return `media_${timestamp}_${random}`
+	}
+
+	/** Store media file metadata */
+	storeMediaFile(
+		mediaFile: Omit<MediaFile, 'id' | 'uploadTimestamp'>
+	): MediaFile {
+		const id = this.generateMediaId()
+		const stored: MediaFile = {
+			...mediaFile,
+			id,
+			uploadTimestamp: new Date(),
+		}
+
+		this.mediaFiles.set(id, stored)
+		console.log(`📁 Stored media file: ${id} (${mediaFile.filename})`)
+		return stored
+	}
+
+	/** Get media file by ID */
+	getMediaFile(id: string): MediaFile | undefined {
+		return this.mediaFiles.get(id)
+	}
+
+	/** Get all media files */
+	getAllMediaFiles(): MediaFile[] {
+		return Array.from(this.mediaFiles.values()).sort(
+			(a, b) => a.uploadTimestamp.getTime() - b.uploadTimestamp.getTime()
+		)
+	}
+
+	/** Get media files for a phone number */
+	getMediaFilesForPhoneNumber(phoneNumberId: string): MediaFile[] {
+		return Array.from(this.mediaFiles.values())
+			.filter((media) => media.phoneNumberId === phoneNumberId)
+			.sort((a, b) => a.uploadTimestamp.getTime() - b.uploadTimestamp.getTime())
+	}
+
+	/** Update media file status */
+	updateMediaFileStatus(id: string, status: MediaFile['status']): boolean {
+		const mediaFile = this.mediaFiles.get(id)
+		if (mediaFile) {
+			mediaFile.status = status
+			this.mediaFiles.set(id, mediaFile)
+			console.log(`📁 Updated media file ${id} status to ${status}`)
+			return true
+		}
+		return false
+	}
+
+	/** Delete media file metadata */
+	deleteMediaFile(id: string): boolean {
+		const deleted = this.mediaFiles.delete(id)
+		if (deleted) {
+			console.log(`🗑️ Deleted media file: ${id}`)
+		}
+		return deleted
+	}
+
+	/** Get MIME type from file path */
+	private getMimeTypeFromPath(filePath: string): string {
+		const extension = filePath.split('.').pop()?.toLowerCase()
+		const mimeMap: Record<string, string> = {
+			jpg: 'image/jpeg',
+			jpeg: 'image/jpeg',
+			png: 'image/png',
+			gif: 'image/gif',
+			webp: 'image/webp',
+			pdf: 'application/pdf',
+			doc: 'application/msword',
+			docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+			mp3: 'audio/mpeg',
+			wav: 'audio/wav',
+			ogg: 'audio/ogg',
+			mp4: 'video/mp4',
+			mov: 'video/quicktime',
+			avi: 'video/x-msvideo',
+		}
+		return mimeMap[extension || ''] || 'application/octet-stream'
+	}
+
 	// Clear all data (useful for testing)
 	clear(): void {
 		this.messages.clear()
@@ -290,6 +422,7 @@ class MemoryStore {
 		this.webhookConfigs.clear()
 		this.webhookEvents.clear()
 		this.typingIndicators.clear()
+		this.mediaFiles.clear()
 		this.messageIdCounter = 1
 		console.log('🧹 Cleared all mock data')
 	}
@@ -307,11 +440,13 @@ class MemoryStore {
 			totalWebhookMessages: this.webhookMessages.size,
 			totalWebhookConfigs: this.webhookConfigs.size,
 			totalWebhookEvents: this.webhookEvents.size,
+			totalMediaFiles: this.mediaFiles.size,
 			phoneNumbers: new Set([
 				...Array.from(this.messages.values()).map((m) => m.phoneNumberId),
 				...Array.from(this.webhookMessages.values()).map(
 					(m) => m.phoneNumberId
 				),
+				...Array.from(this.mediaFiles.values()).map((m) => m.phoneNumberId),
 			]).size,
 		}
 	}

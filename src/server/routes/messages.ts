@@ -19,7 +19,6 @@ import {
 	validateWhatsAppTypingRequest,
 } from '../utils/validator.ts'
 import { broadcast } from '../websocket.ts'
-
 const messagesRouter = new Hono()
 
 /** Process template with variable substitution */
