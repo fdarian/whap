@@ -1,4 +1,4 @@
-import { Box, Text, useApp, useInput } from 'ink'
+import { Box, useApp, useInput } from 'ink'
 import { type FC, useEffect, useState } from 'react'
 import { ApiClient } from '../utils/api-client.ts'
 import { useTerminal } from '../utils/terminal.ts'
@@ -62,71 +62,20 @@ export const WhatsAppTestCLI: FC = () => {
 	if (!isOnboardingComplete) {
 		return (
 			<Box flexDirection="column" height={terminal.rows}>
-				{/* Simple header during onboarding */}
-				<Box paddingX={3} paddingY={1} borderStyle="single" borderColor="cyan">
-					<Box
-						flexDirection="row"
-						justifyContent="space-between"
-						alignItems="center"
-					>
-						<Text bold color="cyan">
-							WhatsApp Bot Test CLI
-						</Text>
-						<Text color={isConnected ? 'green' : 'red'}>
-							● {isConnected ? 'Connected' : 'Disconnected'}
-						</Text>
-					</Box>
-				</Box>
-
-				{/* Onboarding flow takes the rest of the screen */}
-				<Box flexGrow={1}>
-					<OnboardingFlow onComplete={handleOnboardingComplete} />
-				</Box>
+				<OnboardingFlow onComplete={handleOnboardingComplete} />
 			</Box>
 		)
 	}
 
 	return (
 		<Box flexDirection="column" height={terminal.rows}>
-			{/* Enhanced header with user/bot info */}
-			<Box paddingX={3} paddingY={1} borderStyle="single" borderColor="cyan">
-				<Box
-					flexDirection="row"
-					justifyContent="space-between"
-					alignItems="center"
-					flexWrap="wrap"
-				>
-					<Box flexDirection="row" alignItems="center" gap={4}>
-						<Text bold color="cyan">
-							WhatsApp Bot Test CLI
-						</Text>
-						<Text color="gray" dimColor>
-							User: {userPhoneNumber}
-						</Text>
-						<Text color="gray" dimColor>
-							→ Bot: {botPhoneNumber}
-						</Text>
-					</Box>
-					<Box flexDirection="row" alignItems="center" gap={4}>
-						<Text color={isConnected ? 'green' : 'red'}>
-							● {isConnected ? 'Connected' : 'Disconnected'}
-						</Text>
-						<Text color="gray" dimColor>
-							Ctrl+N: New | Ctrl+C: Exit
-						</Text>
-					</Box>
-				</Box>
-			</Box>
-
-			{/* Simplified chat interface takes the rest */}
-			<Box flexGrow={1}>
-				<SimplifiedChatInterface
-					apiClient={apiClient}
-					userPhoneNumber={userPhoneNumber}
-					botPhoneNumber={botPhoneNumber}
-					onNewConversation={handleNewConversation}
-				/>
-			</Box>
+			<SimplifiedChatInterface
+				apiClient={apiClient}
+				userPhoneNumber={userPhoneNumber}
+				botPhoneNumber={botPhoneNumber}
+				onNewConversation={handleNewConversation}
+				isConnected={isConnected}
+			/>
 		</Box>
 	)
 }

@@ -12,6 +12,7 @@ interface SimplifiedChatInterfaceProps {
 	userPhoneNumber: string
 	botPhoneNumber: string
 	onNewConversation: () => void
+	isConnected: boolean
 }
 
 type InterfaceMode = 'chat' | 'templates' | 'template-params'
@@ -21,6 +22,7 @@ export const SimplifiedChatInterface: FC<SimplifiedChatInterfaceProps> = ({
 	userPhoneNumber,
 	botPhoneNumber,
 	onNewConversation,
+	isConnected,
 }) => {
 	const [messages, setMessages] = useState<Message[]>([])
 	const [loading, setLoading] = useState(false)
@@ -43,16 +45,11 @@ export const SimplifiedChatInterface: FC<SimplifiedChatInterfaceProps> = ({
 		{}
 	)
 	const [templatesLoading, setTemplatesLoading] = useState(false)
+	const [showCommandPalette, setShowCommandPalette] = useState(false)
 
 	const terminal = useTerminal()
 
-	// Calculate max messages based on available space - conservative approach
-	const calculateMaxMessages = useCallback(() => {
-		// Reserve space for header (3 lines) + input area (4 lines) + margins
-		const availableLines = Math.max(5, terminal.rows - 10)
-		// Each message takes roughly 2-3 lines, so divide by 3 for safety
-		return Math.max(3, Math.floor(availableLines / 3))
-	}, [terminal.rows])
+	// No message limits - show full conversation history
 
 	const loadConversation = useCallback(async () => {
 		setLoading(true)
@@ -107,7 +104,11 @@ export const SimplifiedChatInterface: FC<SimplifiedChatInterfaceProps> = ({
 	useInput((input, key) => {
 		if (mode === 'chat') {
 			if (key.return && currentMessage.trim()) {
-				void handleSendMessage() // fire-and-forget
+				if (currentMessage.startsWith('/')) {
+					void handleSlashCommand(currentMessage)
+				} else {
+					void handleSendMessage() // fire-and-forget
+				}
 				return
 			}
 
@@ -343,10 +344,40 @@ export const SimplifiedChatInterface: FC<SimplifiedChatInterfaceProps> = ({
 		setTemplateParams({})
 	}
 
+	const handleSlashCommand = async (command: string) => {
+		const cmd = command.toLowerCase().trim()
+		setCurrentMessage('')
+		setShowCommandPalette(false)
+
+		switch (cmd) {
+			case '/help':
+				// Add help message to conversation
+				break
+			case '/new':
+				onNewConversation()
+				break
+			case '/refresh':
+				loadConversation()
+				break
+			case '/file':
+				// Handle file upload
+				break
+			default:
+				// Unknown command - could add to conversation as system message
+				break
+		}
+	}
+
+	// Monitor message input for slash commands
+	const handleMessageChange = (value: string) => {
+		setCurrentMessage(value)
+		setShowCommandPalette(value === '/' || value.startsWith('/'))
+	}
+
 	return (
 		<Box flexDirection="column" height="100%">
-			{/* Main area */}
-			<Box flexDirection="column" flexGrow={1} paddingX={2} paddingY={1}>
+			{/* Conversation area - no borders, clean scrolling */}
+			<Box flexDirection="column" flexGrow={1} paddingX={2}>
 				{mode === 'templates' && renderTemplateSelector()}
 				{mode === 'template-params' && selectedTemplate && (
 					<TemplateVariableCollector
@@ -370,42 +401,23 @@ export const SimplifiedChatInterface: FC<SimplifiedChatInterfaceProps> = ({
 							</Box>
 						)}
 
-						{!loading && messages.length === 0 && (
-							<Box
-								flexDirection="column"
-								alignItems="center"
-								justifyContent="center"
-								height="100%"
-							>
-								{/* Typing indicator for empty conversation */}
-								{isAgentTyping && (
-									<Box marginBottom={2}>
-										<Text color="green" dimColor>
-											🤖 Bot is typing...
-										</Text>
-									</Box>
-								)}
-
-								<Text color="gray" dimColor>
-									🚀 Ready to test your WhatsApp bot!
+						{/* Empty conversation state - no special content, just typing indicator */}
+						{!loading && messages.length === 0 && isAgentTyping && (
+							<Box marginBottom={1}>
+								<Text color="green" dimColor>
+									🤖 Bot is typing...
 								</Text>
-								<Box marginTop={1}>
-									<Text color="gray" dimColor>
-										Type a message below to send to your bot
-									</Text>
-								</Box>
 							</Box>
 						)}
 
 						{messages.length > 0 && (
-							<Box flexDirection="column">
-								<Box marginBottom={1}>
-									<Text color="gray" dimColor>
-										Conversation ({messages.length} messages) - newest first:
-									</Text>
-								</Box>
+							<>
+								{messages
+									.slice()
+									.sort((a, b) => a.timestamp.getTime() - b.timestamp.getTime()) // Chronological order - oldest first, newest at bottom
+									.map(renderMessage)}
 
-								{/* Typing indicator */}
+								{/* Typing indicator at bottom */}
 								{isAgentTyping && (
 									<Box marginBottom={1}>
 										<Text color="green" dimColor>
@@ -413,25 +425,7 @@ export const SimplifiedChatInterface: FC<SimplifiedChatInterfaceProps> = ({
 										</Text>
 									</Box>
 								)}
-
-								<Box flexDirection="column">
-									{messages
-										.slice()
-										.sort(
-											(a, b) => b.timestamp.getTime() - a.timestamp.getTime()
-										) // Newest first
-										.slice(0, calculateMaxMessages())
-										.map(renderMessage)}
-								</Box>
-								{messages.length > calculateMaxMessages() && (
-									<Box marginTop={1}>
-										<Text color="gray" dimColor>
-											... and {messages.length - calculateMaxMessages()} more
-											messages
-										</Text>
-									</Box>
-								)}
-							</Box>
+							</>
 						)}
 					</>
 				)}
@@ -439,36 +433,47 @@ export const SimplifiedChatInterface: FC<SimplifiedChatInterfaceProps> = ({
 
 			{/* Input area at bottom */}
 			{mode === 'chat' && (
-				<Box
-					flexDirection="column"
-					borderStyle="single"
-					borderColor="gray"
-					paddingX={2}
-					paddingY={1}
-				>
-					<Box justifyContent="space-between" marginBottom={1}>
-						<Text color="cyan">💬 Send message to bot:</Text>
-						{status !== 'idle' && renderStatusIndicator()}
-					</Box>
-
-					<Box marginBottom={1}>
+				<>
+					<Box
+						flexDirection="column"
+						borderStyle="single"
+						borderColor="gray"
+						paddingX={2}
+						paddingY={1}
+					>
 						<TextInput
 							value={currentMessage}
-							onChange={setCurrentMessage}
-							placeholder="Type your message here..."
+							onChange={handleMessageChange}
+							placeholder="Type your message..."
 							focus={true}
 						/>
 					</Box>
 
-					<Box justifyContent="space-between">
+					{/* Command palette - appears below input when typing slash commands */}
+					{showCommandPalette && (
+						<Box flexDirection="column" paddingX={2}>
+							<Text color="gray" dimColor>
+								/help Show available commands
+							</Text>
+							<Text color="gray" dimColor>
+								/new Start new conversation
+							</Text>
+							<Text color="gray" dimColor>
+								/refresh Reload conversation history
+							</Text>
+							<Text color="gray" dimColor>
+								/file Upload file to bot
+							</Text>
+						</Box>
+					)}
+
+					{/* Status indicator - outside input box, bottom right */}
+					<Box justifyContent="flex-end" paddingX={2}>
 						<Text color="gray" dimColor>
-							Press Enter to send message
-						</Text>
-						<Text color="gray" dimColor>
-							Ctrl+R: Refresh | Ctrl+N: New Chat | Ctrl+T: Templates
+							{userPhoneNumber.slice(-4)}...→{botPhoneNumber.slice(-4)}... ●
 						</Text>
 					</Box>
-				</Box>
+				</>
 			)}
 		</Box>
 	)
