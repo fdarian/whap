@@ -223,17 +223,14 @@ export const SimplifiedChatInterface: FC<SimplifiedChatInterfaceProps> = ({
 		const header = `${timestamp} ${prefix}`
 		const indentation = '  ' // 2 spaces for indentation
 
-		// By combining into a single Text component with explicit newlines and indentation,
-		// we give Ink's wrapping algorithm the best chance to work correctly.
+		// Just render as text - let terminal handle flow naturally
 		return (
-			<Box key={message.id} marginBottom={1}>
-				<Text color={isOutgoing ? 'cyan' : 'green'} wrap="wrap">
-					<Text color="gray" dimColor>
-						{header}
-					</Text>
-					{`\n${indentation}${messageText}`}
+			<Text key={message.id} color={isOutgoing ? 'cyan' : 'green'} wrap="wrap">
+				<Text color="gray" dimColor>
+					{header}
 				</Text>
-			</Box>
+				{`\n${indentation}${messageText}\n`}
+			</Text>
 		)
 	}
 
@@ -375,9 +372,9 @@ export const SimplifiedChatInterface: FC<SimplifiedChatInterfaceProps> = ({
 	}
 
 	return (
-		<Box flexDirection="column" height="100%">
-			{/* Conversation area - no borders, clean scrolling */}
-			<Box flexDirection="column" flexGrow={1} paddingX={2}>
+		<Box flexDirection="column">
+			{/* Conversation area - let content flow naturally */}
+			<Box flexDirection="column" paddingX={2}>
 				{mode === 'templates' && renderTemplateSelector()}
 				{mode === 'template-params' && selectedTemplate && (
 					<TemplateVariableCollector
@@ -389,58 +386,30 @@ export const SimplifiedChatInterface: FC<SimplifiedChatInterfaceProps> = ({
 
 				{mode === 'chat' && (
 					<>
-						{loading && (
-							<Box justifyContent="center" paddingY={2}>
-								<Text color="yellow">Loading conversation...</Text>
-							</Box>
-						)}
+						{loading && <Text color="yellow">Loading conversation...</Text>}
 
-						{error && (
-							<Box justifyContent="center" paddingY={2}>
-								<Text color="red">Error: {error}</Text>
-							</Box>
-						)}
+						{error && <Text color="red">Error: {error}</Text>}
 
-						{/* Empty conversation state - no special content, just typing indicator */}
-						{!loading && messages.length === 0 && isAgentTyping && (
-							<Box marginBottom={1}>
-								<Text color="green" dimColor>
-									🤖 Bot is typing...
-								</Text>
-							</Box>
-						)}
+						{/* Messages flow naturally in chronological order */}
+						{messages
+							.slice()
+							.sort((a, b) => a.timestamp.getTime() - b.timestamp.getTime()) // Chronological order - oldest first, newest at bottom
+							.map(renderMessage)}
 
-						{messages.length > 0 && (
-							<>
-								{messages
-									.slice()
-									.sort((a, b) => a.timestamp.getTime() - b.timestamp.getTime()) // Chronological order - oldest first, newest at bottom
-									.map(renderMessage)}
-
-								{/* Typing indicator at bottom */}
-								{isAgentTyping && (
-									<Box marginBottom={1}>
-										<Text color="green" dimColor>
-											🤖 Bot is typing...
-										</Text>
-									</Box>
-								)}
-							</>
+						{/* Typing indicator at bottom */}
+						{isAgentTyping && (
+							<Text color="green" dimColor>
+								🤖 Bot is typing...
+							</Text>
 						)}
 					</>
 				)}
 			</Box>
 
-			{/* Input area at bottom */}
+			{/* Input area - minimal structure */}
 			{mode === 'chat' && (
 				<>
-					<Box
-						flexDirection="column"
-						borderStyle="single"
-						borderColor="gray"
-						paddingX={2}
-						paddingY={1}
-					>
+					<Box borderStyle="single" borderColor="gray" paddingX={1}>
 						<TextInput
 							value={currentMessage}
 							onChange={handleMessageChange}
@@ -451,7 +420,7 @@ export const SimplifiedChatInterface: FC<SimplifiedChatInterfaceProps> = ({
 
 					{/* Command palette - appears below input when typing slash commands */}
 					{showCommandPalette && (
-						<Box flexDirection="column" paddingX={2}>
+						<>
 							<Text color="gray" dimColor>
 								/help Show available commands
 							</Text>
@@ -464,15 +433,13 @@ export const SimplifiedChatInterface: FC<SimplifiedChatInterfaceProps> = ({
 							<Text color="gray" dimColor>
 								/file Upload file to bot
 							</Text>
-						</Box>
+						</>
 					)}
 
-					{/* Status indicator - outside input box, bottom right */}
-					<Box justifyContent="flex-end" paddingX={2}>
-						<Text color="gray" dimColor>
-							{userPhoneNumber.slice(-4)}...→{botPhoneNumber.slice(-4)}... ●
-						</Text>
-					</Box>
+					{/* Status indicator - bottom right aligned */}
+					<Text color="gray" dimColor>
+						{userPhoneNumber.slice(-4)}...→{botPhoneNumber.slice(-4)}... ●
+					</Text>
 				</>
 			)}
 		</Box>

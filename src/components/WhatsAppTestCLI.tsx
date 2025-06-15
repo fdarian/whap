@@ -1,4 +1,4 @@
-import { Box, useApp, useInput } from 'ink'
+import { useApp, useInput } from 'ink'
 import { type FC, useEffect, useState } from 'react'
 import { ApiClient } from '../utils/api-client.ts'
 import { useTerminal } from '../utils/terminal.ts'
@@ -60,22 +60,16 @@ export const WhatsAppTestCLI: FC = () => {
 	}
 
 	if (!isOnboardingComplete) {
-		return (
-			<Box flexDirection="column" height={terminal.rows}>
-				<OnboardingFlow onComplete={handleOnboardingComplete} />
-			</Box>
-		)
+		return <OnboardingFlow onComplete={handleOnboardingComplete} />
 	}
 
 	return (
-		<Box flexDirection="column" height={terminal.rows}>
-			<SimplifiedChatInterface
-				apiClient={apiClient}
-				userPhoneNumber={userPhoneNumber}
-				botPhoneNumber={botPhoneNumber}
-				onNewConversation={handleNewConversation}
-				isConnected={isConnected}
-			/>
-		</Box>
+		<SimplifiedChatInterface
+			apiClient={apiClient}
+			userPhoneNumber={userPhoneNumber}
+			botPhoneNumber={botPhoneNumber}
+			onNewConversation={handleNewConversation}
+			isConnected={isConnected}
+		/>
 	)
 }
