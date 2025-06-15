@@ -16,6 +16,7 @@ interface SimplifiedChatInterfaceProps {
 }
 
 type SetupStage = 'user-phone' | 'bot-phone' | 'complete'
+type FileUploadStage = 'path' | 'caption' | 'uploading' | 'idle'
 
 export const SimplifiedChatInterface: FC<SimplifiedChatInterfaceProps> = ({
 	apiClient,
@@ -43,6 +44,12 @@ export const SimplifiedChatInterface: FC<SimplifiedChatInterfaceProps> = ({
 	)
 	const [tempUserPhone, setTempUserPhone] = useState('')
 	const [tempBotPhone, setTempBotPhone] = useState('')
+
+	// File upload state for progressive prompts
+	const [fileUploadStage, setFileUploadStage] =
+		useState<FileUploadStage>('idle')
+	const [tempFilePath, setTempFilePath] = useState('')
+	const [tempFileCaption, setTempFileCaption] = useState('')
 	const [systemMessages, setSystemMessages] = useState<
 		Array<{
 			id: string
@@ -154,6 +161,16 @@ export const SimplifiedChatInterface: FC<SimplifiedChatInterfaceProps> = ({
 				return
 			}
 
+			// Handle file upload stages
+			if (fileUploadStage === 'path') {
+				void handleFilePathInput(currentMessage)
+				return
+			}
+			if (fileUploadStage === 'caption') {
+				void handleFileCaptionInput(currentMessage)
+				return
+			}
+
 			// Normal chat mode
 			if (currentMessage.startsWith('/')) {
 				void handleSlashCommand(currentMessage)
@@ -169,6 +186,15 @@ export const SimplifiedChatInterface: FC<SimplifiedChatInterfaceProps> = ({
 
 		if (key.ctrl && input === 'n') {
 			onNewConversation()
+		}
+
+		// Escape key to cancel file upload
+		if (key.escape && fileUploadStage !== 'idle') {
+			addSystemMessage('❌ File upload cancelled.')
+			setFileUploadStage('idle')
+			setTempFilePath('')
+			setTempFileCaption('')
+			setCurrentMessage('')
 		}
 	})
 
@@ -217,6 +243,89 @@ export const SimplifiedChatInterface: FC<SimplifiedChatInterfaceProps> = ({
 		addSystemMessage('✓ Connected! You can now start sending messages.')
 		setSetupStage('complete')
 		onSetupComplete(tempUserPhone, phoneId.trim())
+	}
+
+	const handleFilePathInput = async (filePath: string) => {
+		// Add user input to system messages
+		const userMessage = {
+			id: `file-path-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+			text: filePath,
+			timestamp: new Date(),
+			type: 'user' as const,
+		}
+		setSystemMessages((prev) => [...prev, { ...userMessage, type: 'system' }])
+		setCurrentMessage('')
+
+		// Basic validation - check if file path is provided
+		if (!filePath.trim()) {
+			addSystemMessage(
+				'File path cannot be empty. Please provide a valid file path.'
+			)
+			return
+		}
+
+		// Store file path and move to caption stage
+		setTempFilePath(filePath.trim())
+		addSystemMessage(
+			'Enter a caption for the file (optional, press Enter to skip):'
+		)
+		setFileUploadStage('caption')
+	}
+
+	const handleFileCaptionInput = async (caption: string) => {
+		// Add user input to system messages (even if empty)
+		const userMessage = {
+			id: `file-caption-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+			text: caption || '(no caption)',
+			timestamp: new Date(),
+			type: 'user' as const,
+		}
+		setSystemMessages((prev) => [...prev, { ...userMessage, type: 'system' }])
+		setCurrentMessage('')
+
+		// Store caption and proceed with upload
+		setTempFileCaption(caption.trim())
+		setFileUploadStage('uploading')
+		addSystemMessage('📤 Uploading file...')
+
+		// Attempt file upload
+		void handleFileUpload(tempFilePath, caption.trim())
+	}
+
+	const handleFileUpload = async (filePath: string, caption: string) => {
+		if (!userPhoneNumber || !botPhoneNumber) {
+			addSystemMessage('❌ Upload failed: Phone numbers not configured')
+			setFileUploadStage('idle')
+			return
+		}
+
+		try {
+			// TODO: Implement actual file upload via API client
+			// For now, simulate file upload
+			await new Promise((resolve) => setTimeout(resolve, 2000)) // Simulate upload delay
+
+			// Simulate file upload (since no real API endpoint exists yet)
+			const fileType = filePath.split('.').pop()?.toLowerCase() || 'file'
+			const fileName = filePath.split('/').pop() || filePath
+
+			// Send a text message indicating the file was uploaded
+			const fileMessage = `📎 File: ${fileName}${caption ? `\nCaption: ${caption}` : ''}`
+			await apiClient.sendMessage(userPhoneNumber, botPhoneNumber, fileMessage)
+
+			addSystemMessage('✅ File uploaded successfully!')
+
+			// Reload conversation to show the new message
+			await loadConversation()
+		} catch (error) {
+			addSystemMessage(
+				`❌ Upload failed: ${error instanceof Error ? error.message : 'Unknown error'}`
+			)
+		} finally {
+			// Reset file upload state
+			setFileUploadStage('idle')
+			setTempFilePath('')
+			setTempFileCaption('')
+		}
 	}
 
 	const handleSendMessage = async () => {
@@ -329,7 +438,15 @@ export const SimplifiedChatInterface: FC<SimplifiedChatInterfaceProps> = ({
 				loadConversation()
 				break
 			case '/file':
-				// Handle file upload
+				// Start file upload process
+				if (setupStage !== 'complete') {
+					addSystemMessage(
+						'❌ Please complete setup first before uploading files.'
+					)
+					return
+				}
+				addSystemMessage('📁 File upload started. Enter the path to your file:')
+				setFileUploadStage('path')
 				break
 			default:
 				// Unknown command - could add to conversation as system message
@@ -345,6 +462,18 @@ export const SimplifiedChatInterface: FC<SimplifiedChatInterfaceProps> = ({
 
 	// Get context-aware placeholder text
 	const getPlaceholderText = () => {
+		// File upload stage takes precedence
+		if (fileUploadStage === 'path') {
+			return 'Enter file path (e.g., /path/to/file.jpg)'
+		}
+		if (fileUploadStage === 'caption') {
+			return 'Enter caption (optional)'
+		}
+		if (fileUploadStage === 'uploading') {
+			return 'Uploading...'
+		}
+
+		// Setup stage placeholders
 		switch (setupStage) {
 			case 'user-phone':
 				return 'Enter your phone number (e.g., 6286777363432)'
@@ -387,26 +516,39 @@ export const SimplifiedChatInterface: FC<SimplifiedChatInterfaceProps> = ({
 					value={currentMessage}
 					onChange={handleMessageChange}
 					placeholder={getPlaceholderText()}
-					focus={true}
+					focus={fileUploadStage !== 'uploading'}
 				/>
 			</Box>
 
-			{/* Command palette - appears below input when typing slash commands (only in complete setup) */}
-			{showCommandPalette && setupStage === 'complete' && (
-				<>
+			{/* Command palette - appears below input when typing slash commands (only in complete setup and not during file upload) */}
+			{showCommandPalette &&
+				setupStage === 'complete' &&
+				fileUploadStage === 'idle' && (
+					<>
+						<Text color="gray" dimColor>
+							/help Show available commands
+						</Text>
+						<Text color="gray" dimColor>
+							/new Start new conversation
+						</Text>
+						<Text color="gray" dimColor>
+							/refresh Reload conversation history
+						</Text>
+						<Text color="gray" dimColor>
+							/file Upload file to bot
+						</Text>
+					</>
+				)}
+
+			{/* File upload help text */}
+			{(fileUploadStage === 'path' || fileUploadStage === 'caption') && (
+				<Box paddingX={1}>
 					<Text color="gray" dimColor>
-						/help Show available commands
+						{fileUploadStage === 'path'
+							? 'Enter file path | Esc: Cancel'
+							: 'Enter caption or press Enter to skip | Esc: Cancel'}
 					</Text>
-					<Text color="gray" dimColor>
-						/new Start new conversation
-					</Text>
-					<Text color="gray" dimColor>
-						/refresh Reload conversation history
-					</Text>
-					<Text color="gray" dimColor>
-						/file Upload file to bot
-					</Text>
-				</>
+				</Box>
 			)}
 
 			{/* Status indicator - positioned at bottom right */}
