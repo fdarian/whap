@@ -524,7 +524,7 @@ export const SimplifiedChatInterface: FC<SimplifiedChatInterfaceProps> = ({
 			{showCommandPalette &&
 				setupStage === 'complete' &&
 				fileUploadStage === 'idle' && (
-					<>
+					<Box paddingLeft={2} flexDirection="column">
 						<Text color="gray" dimColor>
 							/help Show available commands
 						</Text>
@@ -537,7 +537,7 @@ export const SimplifiedChatInterface: FC<SimplifiedChatInterfaceProps> = ({
 						<Text color="gray" dimColor>
 							/file Upload file to bot
 						</Text>
-					</>
+					</Box>
 				)}
 
 			{/* File upload help text */}
