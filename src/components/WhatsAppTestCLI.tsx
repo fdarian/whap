@@ -1,7 +1,6 @@
 import { useApp, useInput } from 'ink'
 import { type FC, useEffect, useState } from 'react'
 import { ApiClient } from '../utils/api-client.ts'
-import { useTerminal } from '../utils/terminal.ts'
 import { webSocketClient } from '../utils/websocket-client.ts'
 import { SimplifiedChatInterface } from './SimplifiedChatInterface.tsx'
 
@@ -11,7 +10,6 @@ export const WhatsAppTestCLI: FC = () => {
 	const [userPhoneNumber, setUserPhoneNumber] = useState('')
 	const [botPhoneNumber, setBotPhoneNumber] = useState('')
 	const { exit } = useApp()
-	const terminal = useTerminal()
 
 	// Check connection to mock server on startup and manage websocket connection
 	useEffect(() => {
