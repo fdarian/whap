@@ -487,7 +487,7 @@ export const SimplifiedChatInterface: FC<SimplifiedChatInterfaceProps> = ({
 	}
 
 	return (
-		<Box flexDirection="column">
+		<Box flexDirection="column" paddingBottom={3}>
 			{/* Conversation area - let content flow naturally */}
 			<Box flexDirection="column" paddingX={2}>
 				{loading && <Text color="yellow">Loading conversation...</Text>}
