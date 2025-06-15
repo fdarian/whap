@@ -555,7 +555,7 @@ export const SimplifiedChatInterface: FC<SimplifiedChatInterfaceProps> = ({
 			{userPhoneNumber && botPhoneNumber && (
 				<Box justifyContent="flex-end" paddingRight={1}>
 					<Text color="gray" dimColor>
-						{userPhoneNumber.slice(-4)}...→{botPhoneNumber.slice(-4)}...{' '}
+						{userPhoneNumber} → {botPhoneNumber}{' '}
 						<Text color={isConnected ? 'green' : 'red'}>●</Text>
 					</Text>
 				</Box>
