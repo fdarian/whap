@@ -1,22 +1,22 @@
 {
 	"$schema": "node_modules/@biomejs/biome/configuration_schema.json",
-	"organizeImports": {
-		"enabled": true
+	"vcs": {
+		"enabled": false,
+		"clientKind": "git",
+		"useIgnoreFile": false
+	},
+	"files": {
+		"ignoreUnknown": false
 	},
 	"formatter": {
+		"enabled": true,
+		"indentStyle": "tab",
 		"formatWithErrors": true
 	},
 	"linter": {
 		"enabled": true,
 		"rules": {
-			"recommended": true,
-			"correctness": {
-				"noUnusedImports": "warn"
-			},
-			"a11y": {
-				"useButtonType": "off",
-				"noSvgWithoutTitle": "warn"
-			}
+			"recommended": true
 		}
 	},
 	"javascript": {
@@ -26,8 +26,12 @@
 			"trailingCommas": "es5"
 		}
 	},
-	"vcs": {
+	"assist": {
 		"enabled": true,
-		"clientKind": "git"
+		"actions": {
+			"source": {
+				"organizeImports": "on"
+			}
+		}
 	}
 }
