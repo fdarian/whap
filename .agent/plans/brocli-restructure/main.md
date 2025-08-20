@@ -2,14 +2,14 @@
 
 ## End Goals
 
-- [ ] Unified CLI application using Brocli for command routing
-- [ ] Users can run `pnpm whap server` to start the mock server
-- [ ] Users can run `pnpm whap tui` to start the interactive chat interface
-- [ ] All existing functionality is preserved and working
-- [ ] Proper TypeScript compilation with ES modules and explicit extensions
-- [ ] Package.json includes `bin` field for CLI distribution
-- [ ] Help command provides useful information about available commands
-- [ ] Error handling and graceful shutdown work correctly for both commands
+- [x] Unified CLI application using Brocli for command routing
+- [x] Users can run `pnpm whap server` to start the mock server
+- [x] Users can run `pnpm whap tui` to start the interactive chat interface
+- [x] All existing functionality is preserved and working
+- [x] Proper TypeScript compilation with ES modules and explicit extensions
+- [x] Package.json includes `bin` field for CLI distribution
+- [x] Help command provides useful information about available commands
+- [x] Error handling and graceful shutdown work correctly for both commands
 
 ## Context Map
 
@@ -39,23 +39,23 @@ This plan transforms the current WhatsApp mock server project from having two se
 ## Step-by-Step Plan
 
 ### Phase 1: Setup and Dependencies
-- [ ] Install Brocli dependency → [See task_1.md](./task_1.md)
+- [x] Install Brocli dependency → [See task_1.md](./task_1.md)
 
 ### Phase 2: File Restructuring
-- [ ] Move TUI entry point and update imports → [See task_2.md](./task_2.md)
+- [x] Move TUI entry point and update imports → [See task_2.md](./task_2.md)
 
 ### Phase 3: Brocli Implementation
-- [ ] Create main CLI entry point with Brocli → [See task_3.md](./task_3.md)
-- [ ] Implement server command → [See task_4.md](./task_4.md)
-- [ ] Implement TUI command → [See task_5.md](./task_5.md)
+- [x] Create main CLI entry point with Brocli → [See task_3.md](./task_3.md)
+- [x] Implement server command → [See task_4.md](./task_4.md)
+- [x] Implement TUI command → [See task_5.md](./task_5.md)
 
 ### Phase 4: Package Configuration
-- [ ] Update package.json with bin field and scripts → [See task_6.md](./task_6.md)
+- [x] Update package.json with bin field and scripts → [See task_6.md](./task_6.md)
 
 ### Phase 5: Testing and Validation
-- [ ] Test server command functionality → [See task_7.md](./task_7.md)
-- [ ] Test TUI command functionality → [See task_8.md](./task_8.md)
-- [ ] Verify help command and error handling → [See task_9.md](./task_9.md)
+- [x] Test server command functionality → [See task_7.md](./task_7.md)
+- [x] Test TUI command functionality → [See task_8.md](./task_8.md)
+- [x] Verify help command and error handling → [See task_9.md](./task_9.md)
 
 ## Notes and Considerations
 
