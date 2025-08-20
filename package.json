@@ -2,9 +2,13 @@
 	"name": "whap",
 	"description": "CLI and mock server for testing WhatsApp integration",
 	"type": "module",
+	"bin": {
+		"whap": "./src/index.ts"
+	},
 	"scripts": {
-		"start:server": "tsx src/server/server.ts",
-		"start:cli": "tsx src/tui/index.tsx",
+		"whap": "tsx src/index.ts",
+		"start:server": "tsx src/index.ts server",
+		"start:cli": "tsx src/index.ts tui",
 		"dev:server": "tsx --watch src/server/server.ts",
 		"test": "vitest run",
 		"test:watch": "vitest --watch",
