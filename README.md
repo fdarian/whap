@@ -77,7 +77,12 @@ Create a `whap.json` file in your project root:
 #### 2. Environment Variable
 
 ```bash
+# Fallback URL
 export WEBHOOK_URL=http://localhost:4000/webhook
+pnpm run start:server
+
+# Or phone-specific mapping
+export WEBHOOK_URL=1234567890:http://localhost:4000/webhook
 pnpm run start:server
 ```
 

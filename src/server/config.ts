@@ -1,4 +1,7 @@
-import { getWebhookMappingsFromConfig } from './configuration.ts'
+import {
+	getWebhookMappingsFromConfig,
+	parseWebhookEntry,
+} from './configuration.ts'
 
 export interface WebhookConfig {
 	mappings: Map<string, string>
@@ -61,12 +64,31 @@ function parseWebhookMappings(): Map<string, string> {
 /**
  * Initialize webhook configuration from CLI arguments, environment variables, and config file
  * Priority order: CLI arguments > environment variables > config file
+ * Environment variables can contain either "url" or "phone:url" format like CLI arguments
  */
 function initializeWebhookConfig(): WebhookConfig {
 	const cliMappings = parseWebhookMappings()
 
-	// Get fallback URL from environment variable
-	let fallbackUrl = process.env.WEBHOOK_URL || null
+	// Parse environment variable for webhook URL
+	let fallbackUrl: string | null = null
+	const envWebhookUrl = process.env.WEBHOOK_URL
+	if (envWebhookUrl) {
+		const parsedEnv = parseWebhookEntry(envWebhookUrl)
+		if (parsedEnv) {
+			if (parsedEnv.phone) {
+				// Environment variable contains phone:url mapping
+				cliMappings.set(parsedEnv.phone, parsedEnv.url)
+				console.log(
+					`🔗 Configured webhook URL for phone ${parsedEnv.phone} from environment: ${parsedEnv.url}`
+				)
+			} else {
+				// Environment variable contains fallback URL
+				fallbackUrl = parsedEnv.url
+			}
+		} else {
+			console.error(`❌ Invalid WEBHOOK_URL format: ${envWebhookUrl}`)
+		}
+	}
 
 	// Load config file mappings and fallback URLs
 	const configMappings = getWebhookMappingsFromConfig()
