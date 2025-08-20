@@ -14,7 +14,7 @@ This is a **WhatsApp Mock Server Development Tool** - a comprehensive developmen
 
 ### Two Main Components
 1. **Mock Server** ([src/server/server.ts](mdc:src/server/server.ts)) - Hono-based server that mimics WhatsApp Cloud API endpoints
-2. **Interactive CLI** ([src/index.tsx](mdc:src/index.tsx)) - React + Ink CLI for real-time testing and monitoring
+2. **Interactive CLI** ([src/tui/index.tsx](mdc:src/tui/index.tsx)) - React + Ink CLI for real-time testing and monitoring
 
 ### Development Workflow
 ```bash

@@ -6,15 +6,24 @@ This is a **WhatsApp Mock Server Development Tool** - a comprehensive developmen
 
 ### Two Main Components
 1. **Mock Server** ([src/server/server.ts](mdc:src/server/server.ts)) - Hono-based server that mimics WhatsApp Cloud API endpoints
-2. **Interactive CLI** ([src/index.tsx](mdc:src/index.tsx)) - React + Ink CLI for real-time testing and monitoring
+2. **Interactive TUI** ([src/tui/index.tsx](mdc:src/tui/index.tsx)) - React + Ink terminal UI for real-time testing and monitoring
+
+### CLI Architecture
+- **Entry Point**: [src/index.ts](mdc:src/index.ts) - Main CLI router using [Brocli](https://github.com/drizzle-team/brocli)
+- **Commands**: `src/commands/` - Individual command implementations
+  - `server.ts` - Starts mock server (configurable port)
+  - `tui.ts` - Starts interactive interface (configurable server URL)
+- **Binary**: Registered as `whap` in package.json bin field
 
 ### Development Workflow
 ```bash
-# Terminal 1: Start mock server
-pnpm run start:server
+# Using CLI commands (primary method)
+pnpm whap server        # Start mock server on port 3010
+pnpm whap tui           # Start TUI interface
 
-# Terminal 2: Start CLI interface  
-pnpm run start:cli
+# Or with options
+pnpm whap server --port 3011
+pnpm whap tui --server-url http://localhost:3011
 ```
 
 ### Critical Rules (ALWAYS FOLLOW)
@@ -25,10 +34,12 @@ pnpm run start:cli
 - **Never run interactive CLI commands** when working on interface improvements
 
 ### Key Navigation
-- **Server**: `src/server/` directory - API endpoints, storage, types
-- **CLI**: `src/components/` directory - React components for interface
+- **CLI Entry**: `src/index.ts` - Brocli-based command router
+- **Commands**: `src/commands/` - CLI command implementations
+- **Server**: `src/server/` - API endpoints, storage, types
+- **TUI Components**: `src/components/` - React components for terminal interface
 - **Scripts**: Check [package.json](mdc:package.json) for available commands
-- **Port**: Mock server runs on port 3010 (not 3001)
+- **Port**: Mock server runs on port 3010 (default)
 
 ### Detailed Information
 - Architecture & Components: [whatsapp-architecture.mdc](mdc:.cursor/rules/whatsapp-architecture.mdc)
