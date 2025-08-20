@@ -1,4 +1,4 @@
-#!/usr/bin/env node
+#!/usr/bin/env -S pnpx tsx
 import { command, run } from '@drizzle-team/brocli'
 import 'dotenv/config'
 

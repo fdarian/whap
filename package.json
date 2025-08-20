@@ -6,7 +6,6 @@
 		"whap": "./src/index.ts"
 	},
 	"scripts": {
-		"whap": "tsx src/index.ts",
 		"start:server": "tsx src/index.ts server",
 		"start:cli": "tsx src/index.ts tui",
 		"dev:server": "tsx --watch src/server/server.ts",
