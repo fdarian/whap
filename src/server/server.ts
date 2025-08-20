@@ -94,6 +94,9 @@ function createApp() {
 	}
 	app.route('/v22.0', messagesRouter)
 	app.route('/v22.0', templatesRouter)
+	// Assuming 22 and 23 are the same
+	app.route('/v23.0', messagesRouter)
+	app.route('/v23.0', templatesRouter)
 	// The /mock path is for internal simulation tools
 	app.route('/mock', webhooksRouter)
 	app.route('/status', statusRouter)
