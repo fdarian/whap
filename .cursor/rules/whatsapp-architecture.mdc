@@ -21,13 +21,12 @@ The project consists of **two main components** that work together:
 - **Real-time monitoring** of webhooks and messages
 - **Interactive message composition** and testing
 - **Simplified interface** with onboarding flow
-- **Entry point**: [src/tui/index.tsx](mdc:src/tui/index.tsx)
+- **Entry point**: [src/index.tsx](mdc:src/index.tsx)
 
 ## Key Files & Structure
 
 ### Critical Entry Points
-- [src/index.ts](mdc:src/index.ts) - Unified CLI application entry
-- [src/tui/index.tsx](mdc:src/tui/index.tsx) - CLI application entry
+- [src/index.tsx](mdc:src/index.tsx) - CLI application entry
 - [src/server/server.ts](mdc:src/server/server.ts) - Mock server entry
 - [package.json](mdc:package.json) - Contains run scripts and dependencies
 

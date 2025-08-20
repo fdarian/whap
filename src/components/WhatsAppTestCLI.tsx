@@ -1,16 +1,11 @@
 import { useApp, useInput } from 'ink'
 import { type FC, useEffect, useState } from 'react'
 import { ApiClient } from '../utils/api-client.ts'
-import { createWebSocketClient } from '../utils/websocket-client.ts'
+import { webSocketClient } from '../utils/websocket-client.ts'
 import { SimplifiedChatInterface } from './SimplifiedChatInterface.tsx'
 
-export interface WhatsAppTestCLIProps {
-	serverUrl?: string
-}
-
-export const WhatsAppTestCLI: FC<WhatsAppTestCLIProps> = ({ serverUrl }) => {
-	const [apiClient] = useState(() => new ApiClient(serverUrl))
-	const [wsClient] = useState(() => createWebSocketClient(serverUrl))
+export const WhatsAppTestCLI: FC = () => {
+	const [apiClient] = useState(() => new ApiClient())
 	const [isConnected, setIsConnected] = useState(false)
 	const [userPhoneNumber, setUserPhoneNumber] = useState('')
 	const [botPhoneNumber, setBotPhoneNumber] = useState('')
@@ -18,23 +13,23 @@ export const WhatsAppTestCLI: FC<WhatsAppTestCLIProps> = ({ serverUrl }) => {
 
 	// Check connection to mock server on startup and manage websocket connection
 	useEffect(() => {
-		wsClient.connect()
+		webSocketClient.connect()
 
 		const handleConnectionChange = (connected: boolean) => {
 			setIsConnected(connected)
 		}
 
 		// Set initial state
-		setIsConnected(wsClient.isConnected)
+		setIsConnected(webSocketClient.isConnected)
 
 		// Listen for changes
-		wsClient.addConnectionStatusListener(handleConnectionChange)
+		webSocketClient.addConnectionStatusListener(handleConnectionChange)
 
 		return () => {
-			wsClient.removeConnectionStatusListener(handleConnectionChange)
-			wsClient.disconnect()
+			webSocketClient.removeConnectionStatusListener(handleConnectionChange)
+			webSocketClient.disconnect()
 		}
-	}, [wsClient])
+	}, [])
 
 	useInput((input, key) => {
 		if (key.ctrl && input === 'c') {
@@ -61,7 +56,6 @@ export const WhatsAppTestCLI: FC<WhatsAppTestCLIProps> = ({ serverUrl }) => {
 	return (
 		<SimplifiedChatInterface
 			apiClient={apiClient}
-			wsClient={wsClient}
 			userPhoneNumber={userPhoneNumber}
 			botPhoneNumber={botPhoneNumber}
 			onSetupComplete={handleSetupComplete}

@@ -10,24 +10,19 @@ interface WebSocketMessage {
 type MessageListener = (message: WebSocketMessage) => void
 type ConnectionStatusListener = (isConnected: boolean) => void
 
-export class WebSocketClient {
+class WebSocketClient {
 	private ws: ReconnectingWebSocket | null = null
 	private messageListeners: Set<MessageListener> = new Set()
 	private connectionStatusListeners: Set<ConnectionStatusListener> = new Set()
 	public isConnected = false
-	private serverUrl: string
-
-	constructor(serverUrl?: string) {
-		this.serverUrl = serverUrl || `http://localhost:${process.env.PORT || 3010}`
-	}
 
 	connect() {
 		if (this.ws) {
 			return
 		}
 
-		// Convert http/https URL to ws/wss for websocket connection
-		const wsUrl = this.serverUrl.replace(/^http/, 'ws') + '/ws'
+		const port = process.env.PORT || 3010
+		const wsUrl = `ws://localhost:${port}/ws`
 
 		this.ws = new ReconnectingWebSocket(wsUrl, [], {
 			minReconnectionDelay: 1000,
@@ -98,10 +93,4 @@ export class WebSocketClient {
 	}
 }
 
-// Export a factory function to create websocket clients with custom server URLs
-export function createWebSocketClient(serverUrl?: string): WebSocketClient {
-	return new WebSocketClient(serverUrl)
-}
-
-// Default instance for backward compatibility
 export const webSocketClient = new WebSocketClient()

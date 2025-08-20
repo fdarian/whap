@@ -105,7 +105,7 @@ describe('Webhooks API Integration Tests', () => {
 				from: '1234567890',
 				to: testPhoneId,
 				message: {
-					id: 'msg_test_123',
+					id: 'wamid.msg_test_123',
 					type: 'text',
 					timestamp: '1234567890',
 					text: {
@@ -165,7 +165,7 @@ describe('Webhooks API Integration Tests', () => {
 			const invalidParams = {
 				to: testPhoneId,
 				message: {
-					id: 'msg_test_123',
+					id: 'wamid.msg_test_123',
 					type: 'text',
 					timestamp: '1234567890',
 					text: { body: 'Test message' },
@@ -191,7 +191,7 @@ describe('Webhooks API Integration Tests', () => {
 			const invalidParams = {
 				from: '1234567890',
 				message: {
-					id: 'msg_test_123',
+					id: 'wamid.msg_test_123',
 					type: 'text',
 					timestamp: '1234567890',
 					text: { body: 'Test message' },
@@ -218,7 +218,7 @@ describe('Webhooks API Integration Tests', () => {
 				from: '1234567890',
 				to: testPhoneId,
 				message: {
-					id: 'msg_test_123',
+					id: 'wamid.msg_test_123',
 					type: 'text',
 					timestamp: '1234567890',
 					text: {}, // Missing body
@@ -246,7 +246,7 @@ describe('Webhooks API Integration Tests', () => {
 				from: '1234567890',
 				to: unconfiguredPhoneId,
 				message: {
-					id: 'msg_test_123',
+					id: 'wamid.msg_test_123',
 					type: 'text',
 					timestamp: '1234567890',
 					text: { body: 'Test message' },
@@ -314,7 +314,7 @@ describe('Webhooks API Integration Tests', () => {
 				from: '1234567890',
 				to: testPhoneId,
 				message: {
-					id: 'msg_test_123',
+					id: 'wamid.msg_test_123',
 					type: 'text',
 					timestamp: '1234567890',
 					text: { body: 'Test message' },
