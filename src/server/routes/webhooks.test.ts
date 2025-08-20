@@ -103,6 +103,32 @@ describe('Webhooks API Integration Tests', () => {
 			process.env.WEBHOOK_URL = originalUrl
 			resetWebhookConfig()
 		})
+
+		test('should parse environment variable with phoneNumberId:url format', () => {
+			// Test environment variable with phone:url format
+			const originalUrl = process.env.WEBHOOK_URL
+			process.env.WEBHOOK_URL =
+				'631669390033922:http://localhost:4000/test-webhook'
+
+			// Reset config to force re-initialization
+			resetWebhookConfig()
+
+			// Should get the specific URL for the configured phone number
+			const urlForPhone = getWebhookUrl('631669390033922')
+			expect(urlForPhone).toBe('http://localhost:4000/test-webhook')
+
+			// Should get null for other phone numbers (no fallback URL)
+			const urlForOtherPhone = getWebhookUrl('999999999')
+			expect(urlForOtherPhone).toBeNull()
+
+			// Should get null for fallback URL (since env var was parsed as phone mapping)
+			const fallbackUrl = getWebhookUrl()
+			expect(fallbackUrl).toBeNull()
+
+			// Restore the original URL and reset config
+			process.env.WEBHOOK_URL = originalUrl
+			resetWebhookConfig()
+		})
 	})
 
 	describe('POST /simulate-message', () => {

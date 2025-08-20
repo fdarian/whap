@@ -15,13 +15,16 @@ export interface ParsedWebhookMapping {
  * @param entry - The webhook entry string
  * @returns Parsed mapping or null if invalid
  */
-function parseWebhookEntry(entry: string): ParsedWebhookMapping | null {
-	// First, try to parse as a direct URL
-	try {
-		new URL(entry)
-		return { url: entry }
-	} catch {
-		// Not a direct URL, try phone:url format
+export function parseWebhookEntry(entry: string): ParsedWebhookMapping | null {
+	// First, try to parse as a direct URL (must start with http:// or https://)
+	if (entry.startsWith('http://') || entry.startsWith('https://')) {
+		try {
+			new URL(entry)
+			return { url: entry }
+		} catch {
+			// Invalid URL format
+			return null
+		}
 	}
 
 	// Look for phone:url format - find the first colon that's not part of http:// or https://
