@@ -1,4 +1,3 @@
-#!/usr/bin/env node
 import { render } from 'ink'
 import { WhatsAppTestCLI } from '../components/WhatsAppTestCLI.tsx'
 import { getTerminalInfo } from '../utils/terminal.ts'
@@ -44,9 +43,4 @@ export function startTUI(options: StartTUIOptions = {}) {
 		console.error('Failed to start WhatsApp Test CLI:', error)
 		throw error
 	}
-}
-
-// If this file is run directly, start the TUI
-if (import.meta.url === `file://${process.argv[1]}`) {
-	startTUI()
 }
