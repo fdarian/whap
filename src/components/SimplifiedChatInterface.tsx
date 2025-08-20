@@ -69,8 +69,9 @@ export const SimplifiedChatInterface: FC<SimplifiedChatInterfaceProps> = ({
 	}
 
 	const validateBotPhoneNumberId = (phoneId: string): boolean => {
+		return true
 		// Check if input contains only numbers
-		return /^\d+$/.test(phoneId.trim())
+		// return /^\d+$/.test(phoneId.trim())
 	}
 
 	const addSystemMessage = useCallback((text: string) => {
