@@ -1,11 +1,16 @@
 import { useApp, useInput } from 'ink'
 import { type FC, useEffect, useState } from 'react'
 import { ApiClient } from '../utils/api-client.ts'
-import { webSocketClient } from '../utils/websocket-client.ts'
+import { createWebSocketClient } from '../utils/websocket-client.ts'
 import { SimplifiedChatInterface } from './SimplifiedChatInterface.tsx'
 
-export const WhatsAppTestCLI: FC = () => {
-	const [apiClient] = useState(() => new ApiClient())
+export interface WhatsAppTestCLIProps {
+	serverUrl?: string
+}
+
+export const WhatsAppTestCLI: FC<WhatsAppTestCLIProps> = ({ serverUrl }) => {
+	const [apiClient] = useState(() => new ApiClient(serverUrl))
+	const [wsClient] = useState(() => createWebSocketClient(serverUrl))
 	const [isConnected, setIsConnected] = useState(false)
 	const [userPhoneNumber, setUserPhoneNumber] = useState('')
 	const [botPhoneNumber, setBotPhoneNumber] = useState('')
@@ -13,23 +18,23 @@ export const WhatsAppTestCLI: FC = () => {
 
 	// Check connection to mock server on startup and manage websocket connection
 	useEffect(() => {
-		webSocketClient.connect()
+		wsClient.connect()
 
 		const handleConnectionChange = (connected: boolean) => {
 			setIsConnected(connected)
 		}
 
 		// Set initial state
-		setIsConnected(webSocketClient.isConnected)
+		setIsConnected(wsClient.isConnected)
 
 		// Listen for changes
-		webSocketClient.addConnectionStatusListener(handleConnectionChange)
+		wsClient.addConnectionStatusListener(handleConnectionChange)
 
 		return () => {
-			webSocketClient.removeConnectionStatusListener(handleConnectionChange)
-			webSocketClient.disconnect()
+			wsClient.removeConnectionStatusListener(handleConnectionChange)
+			wsClient.disconnect()
 		}
-	}, [])
+	}, [wsClient])
 
 	useInput((input, key) => {
 		if (key.ctrl && input === 'c') {
@@ -56,6 +61,7 @@ export const WhatsAppTestCLI: FC = () => {
 	return (
 		<SimplifiedChatInterface
 			apiClient={apiClient}
+			wsClient={wsClient}
 			userPhoneNumber={userPhoneNumber}
 			botPhoneNumber={botPhoneNumber}
 			onSetupComplete={handleSetupComplete}

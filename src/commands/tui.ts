@@ -1,4 +1,5 @@
 import { command, string } from '@drizzle-team/brocli'
+import { startTUI } from '../tui/index.tsx'
 
 export const tuiCommand = command({
 	name: 'tui',
@@ -9,7 +10,12 @@ export const tuiCommand = command({
 			.default('http://localhost:3010'),
 	},
 	handler: async (opts) => {
-		// TODO: Implement TUI command
-		console.log(`Starting TUI interface connecting to ${opts.serverUrl}`)
+		try {
+			console.log(`Starting TUI interface connecting to ${opts.serverUrl}`)
+			startTUI({ serverUrl: opts.serverUrl })
+		} catch (error) {
+			console.error('Failed to start TUI interface:', error)
+			process.exit(1)
+		}
 	},
 })

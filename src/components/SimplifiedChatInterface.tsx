@@ -3,11 +3,12 @@ import { Box, Text, useInput } from 'ink'
 import { type FC, useCallback, useEffect, useState } from 'react'
 import type { ApiClient, Message } from '../utils/api-client.ts'
 import { useTerminal } from '../utils/terminal.ts'
-import { webSocketClient } from '../utils/websocket-client.ts'
+import type { WebSocketClient } from '../utils/websocket-client.ts'
 import { TextInput } from './TextInput.tsx'
 
 interface SimplifiedChatInterfaceProps {
 	apiClient: ApiClient
+	wsClient: WebSocketClient
 	userPhoneNumber?: string
 	botPhoneNumber?: string
 	onSetupComplete: (userNumber: string, botNumber: string) => void
@@ -20,6 +21,7 @@ type FileUploadStage = 'path' | 'caption' | 'uploading' | 'idle'
 
 export const SimplifiedChatInterface: FC<SimplifiedChatInterfaceProps> = ({
 	apiClient,
+	wsClient,
 	userPhoneNumber,
 	botPhoneNumber,
 	onSetupComplete,
@@ -142,12 +144,12 @@ export const SimplifiedChatInterface: FC<SimplifiedChatInterfaceProps> = ({
 			}
 		}
 
-		webSocketClient.addMessageListener(handleWebSocketMessage)
+		wsClient.addMessageListener(handleWebSocketMessage)
 
 		return () => {
-			webSocketClient.removeMessageListener(handleWebSocketMessage)
+			wsClient.removeMessageListener(handleWebSocketMessage)
 		}
-	}, [loadConversation, botPhoneNumber])
+	}, [loadConversation, botPhoneNumber, wsClient])
 
 	useInput((input, key) => {
 		if (key.return && currentMessage.trim()) {

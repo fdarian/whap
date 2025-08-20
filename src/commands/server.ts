@@ -1,4 +1,5 @@
 import { command, number } from '@drizzle-team/brocli'
+import { startServer } from '../server/server.ts'
 
 export const serverCommand = command({
 	name: 'server',
@@ -7,7 +8,37 @@ export const serverCommand = command({
 		port: number().desc('Port to run the server on').default(3010),
 	},
 	handler: async (opts) => {
-		// TODO: Implement server command
-		console.log(`Starting server on port ${opts.port}`)
+		try {
+			console.log('🚀 Starting WhatsApp Mock Server...')
+
+			const server = await startServer(opts.port)
+
+			// Handle graceful shutdown
+			const gracefulShutdown = () => {
+				console.log('\n⚡ Shutting down server gracefully...')
+				server.close(() => {
+					console.log('✅ Server closed successfully')
+					process.exit(0)
+				})
+			}
+
+			// Register shutdown handlers
+			process.on('SIGINT', gracefulShutdown)
+			process.on('SIGTERM', gracefulShutdown)
+
+			// Keep the process alive
+			process.on('uncaughtException', (error) => {
+				console.error('❌ Uncaught Exception:', error)
+				gracefulShutdown()
+			})
+
+			process.on('unhandledRejection', (reason, promise) => {
+				console.error('❌ Unhandled Rejection at:', promise, 'reason:', reason)
+				gracefulShutdown()
+			})
+		} catch (error) {
+			console.error('❌ Failed to start server:', error)
+			process.exit(1)
+		}
 	},
 })
