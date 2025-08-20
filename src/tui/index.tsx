@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import { render } from 'ink'
-import { WhatsAppTestCLI } from './components/WhatsAppTestCLI.tsx'
-import { getTerminalInfo } from './utils/terminal.ts'
+import { WhatsAppTestCLI } from '../components/WhatsAppTestCLI.tsx'
+import { getTerminalInfo } from '../utils/terminal.ts'
 import 'dotenv/config'
 
 // Check terminal compatibility and provide helpful information
