@@ -1,0 +1,80 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install dependencies
+        run: bun install
+
+      - name: Build macOS binary
+        run: bun build src/index.ts --compile --outfile whap --target=bun-darwin-x64
+
+      - name: Build Linux binary
+        run: bun build src/index.ts --compile --outfile whap-linux --target=bun-linux-x64
+
+      - name: Create macOS tarball
+        run: tar -czf whap-darwin-x64.tar.gz whap
+
+      - name: Create Linux tarball
+        run: tar -czf whap-linux-x64.tar.gz whap-linux
+
+      - name: Create Release and Upload Assets
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: Release ${{ github.ref_name }}
+          generate_release_notes: true
+          files: |
+            whap-darwin-x64.tar.gz
+            whap-linux-x64.tar.gz
+
+      - name: Calculate SHA256 checksum
+        id: checksum
+        run: |
+          SHA256=$(sha256sum whap-darwin-x64.tar.gz | cut -d' ' -f1)
+          echo "sha256=$SHA256" >> $GITHUB_OUTPUT
+
+      - name: Extract version from tag
+        id: version
+        run: |
+          VERSION=${GITHUB_REF_NAME#v}
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+
+      - name: Update Homebrew formula
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          SHA256="${{ steps.checksum.outputs.sha256 }}"
+          
+          # Update version, URL, and SHA256 in Formula/whap.rb
+          sed -i "s/version \".*\"/version \"$VERSION\"/" Formula/whap.rb
+          sed -i "s|url \".*\"|url \"https://github.com/fdarian/whap/releases/download/v$VERSION/whap-darwin-x64.tar.gz\"|" Formula/whap.rb
+          sed -i "s/sha256 \".*\"/sha256 \"$SHA256\"/" Formula/whap.rb
+
+      - name: Configure git
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+
+      - name: Commit and push formula update
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          git add Formula/whap.rb
+          git commit -m "chore: update Homebrew formula for version $VERSION"
+          git push origin HEAD:main
