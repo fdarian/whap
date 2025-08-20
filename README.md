@@ -99,7 +99,7 @@ Configuration sources are applied in this order (highest to lowest priority):
 2. **Environment variables** (`WEBHOOK_URL`)  
 3. **Configuration file** (`whap.json`)
 
-Webhook URLs without phone numbers are used as fallback URLs when no phone-specific mapping exists.
+Webhook URLs without phone numbers are used as fallback URLs when no phone-specific mapping exists. If multiple fallback URLs are provided, the first entry in `whap.json` is used when `WEBHOOK_URL` is not set.
 
 ## Template System
 
