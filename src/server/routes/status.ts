@@ -40,22 +40,33 @@ function calculateStats() {
 }
 
 // Store the interval ID for cleanup
-const statsIntervalId: NodeJS.Timeout = setInterval(() => {
-	const stats = calculateStats()
-	broadcast({
-		type: 'STATS_UPDATE',
-		payload: {
-			totalMessages: stats.totalMessages,
-			uptime: stats.uptime,
-			lastActivity: stats.lastActivity,
-		},
-	})
-}, 10000) // Broadcast every 10 seconds
+let statsIntervalId: NodeJS.Timeout | null = null
+
+// Function to start the stats broadcasting interval
+function startStatsInterval() {
+	// Prevent multiple intervals from being created
+	if (statsIntervalId) {
+		return
+	}
+
+	statsIntervalId = setInterval(() => {
+		const stats = calculateStats()
+		broadcast({
+			type: 'STATS_UPDATE',
+			payload: {
+				totalMessages: stats.totalMessages,
+				uptime: stats.uptime,
+				lastActivity: stats.lastActivity,
+			},
+		})
+	}, 10000) // Broadcast every 10 seconds
+}
 
 // Cleanup function to clear the interval
-function cleanupStatsInterval() {
+function stopStatsInterval() {
 	if (statsIntervalId) {
 		clearInterval(statsIntervalId)
+		statsIntervalId = null
 	}
 }
 
@@ -98,4 +109,4 @@ statusRouter.get('/stats', (c) => {
 	}
 })
 
-export { statusRouter, cleanupStatsInterval }
+export { statusRouter, startStatsInterval, stopStatsInterval }
