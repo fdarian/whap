@@ -30,6 +30,12 @@ bun whap tui           # Start TUI interface
 - **Scripts**: Check [package.json](mdc:package.json) for available commands
 - **Port**: Mock server runs on port 3010 (default)
 
+### Configuration
+- **whap.json**: Optional config file for webhook URL mappings
+  - Maps phone numbers to specific webhook endpoints
+  - See `src/server/configuration.ts` for schema and loading
+  - See `src/server/config.ts` for webhook priority (CLI > env > config file)
+
 ### Detailed Information
 - Architecture & Components: [whatsapp-architecture.mdc](mdc:.cursor/rules/whatsapp-architecture.mdc)
 - Development Guidelines: [whatsapp-development.mdc](mdc:.cursor/rules/whatsapp-development.mdc)
