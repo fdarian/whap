@@ -9,6 +9,13 @@ This is a **WhatsApp Mock Server Development Tool** - a comprehensive developmen
 2. **Interactive TUI** ([src/tui/index.tsx](src/tui/index.tsx)) - React + Ink terminal UI for real-time testing and monitoring
 
 ### CLI Architecture
+```bash
+# Using CLI commands (primary method)
+bun whap               # Main CLI entrypoint
+bun whap server        # Start mock server on port 3010
+bun whap tui           # Start TUI interface
+```
+
 - **Entry Point**: [src/index.ts](src/index.ts) - Main CLI router using [Brocli](https://github.com/drizzle-team/brocli)
 - **Commands**: `src/commands/` - Individual command implementations
   - `server.ts` - Starts mock server (configurable port)
@@ -31,17 +38,11 @@ This is a **WhatsApp Mock Server Development Tool** - a comprehensive developmen
 
 
 ## Development Workflow
-```bash
-# Using CLI commands (primary method)
-bun whap server        # Start mock server on port 3010
-bun whap tui           # Start TUI interface
+**Verifying changes**:
+- `bun tsc --noEmit` for typecheck
+- `bun run build` for compilation into executable binary
 
-# Or with options
-bun whap server --port 3011
-bun whap tui --server-url http://localhost:3011
-```
-
-## Critical Rules (ALWAYS FOLLOW)
+**Critical Rules (ALWAYS FOLLOW)**
 - **No barrel files** - Keep imports direct and explicit
 - **No centralized `types.ts`** - Define types beside functions
 - **Use explicit `.ts`/`.tsx` extensions** in imports (ES modules requirement)
