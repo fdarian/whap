@@ -3,12 +3,11 @@
 	"description": "CLI and mock server for testing WhatsApp integration",
 	"type": "module",
 	"bin": {
-		"whap": "./src/index.ts"
+		"whap": "./dist/whap"
 	},
 	"scripts": {
-		"start:server": "tsx src/index.ts server",
-		"start:cli": "tsx src/index.ts tui",
-		"dev:server": "tsx --watch src/server/server.ts",
+		"build": "tsx src/index.ts server",
+		"dev:server": "bun run --watch src/server/server.ts",
 		"test": "vitest run",
 		"test:watch": "vitest --watch",
 		"test:ui": "vitest --ui"
@@ -34,8 +33,8 @@
 	},
 	"devDependencies": {
 		"@biomejs/biome": "^1.9.4",
+		"@types/bun": "^1.2.20",
 		"@types/json-schema": "^7.0.15",
-		"@types/node": "^24.0.0",
 		"@types/ws": "^8.18.1",
 		"@vitest/ui": "^3.2.3",
 		"lefthook": "^1.11.13",
@@ -43,5 +42,9 @@
 		"typescript": "^5.0.0",
 		"typescript-json-schema": "^0.65.1",
 		"vitest": "^3.2.3"
+	},
+	"packageManager": "bun@1",
+	"engines": {
+		"bun": ">=1"
 	}
 }

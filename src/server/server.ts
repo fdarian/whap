@@ -177,13 +177,3 @@ export async function startServer(port = 3010) {
 
 	return server
 }
-
-// This allows the server to be run directly for development
-if (
-	import.meta.url.startsWith('file://') &&
-	process.argv[1] === new URL(import.meta.url).pathname
-) {
-	console.log('Running server directly...')
-	const PORT = Number(process.env.PORT) || 3010
-	await startServer(PORT)
-}
