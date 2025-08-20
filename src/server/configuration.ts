@@ -3,6 +3,9 @@ import path from 'node:path'
 
 export interface WhapConfiguration {
 	webhookUrls?: string[]
+	templates?: {
+		cmd: string
+	}
 }
 
 export interface ParsedWebhookMapping {
@@ -98,6 +101,20 @@ function loadConfigFile(): WhapConfiguration | null {
 			}
 		}
 
+		// Validate templates configuration if present
+		if (config.templates) {
+			if (
+				!config.templates.cmd ||
+				typeof config.templates.cmd !== 'string' ||
+				config.templates.cmd.trim() === ''
+			) {
+				console.error(
+					'❌ Invalid whap.json: templates.cmd must be a non-empty string'
+				)
+				return null
+			}
+		}
+
 		console.log(`📄 Loaded configuration from ${configPath}`)
 		return config
 	} catch (error) {
@@ -135,4 +152,13 @@ export function getWebhookMappingsFromConfig(): {
 	}
 
 	return { mappings, fallbackUrls }
+}
+
+/**
+ * Get templates configuration from configuration file
+ * @returns Templates configuration or null if not present
+ */
+export function getTemplatesConfig(): { cmd: string } | null {
+	const config = loadConfigFile()
+	return config?.templates ?? null
 }

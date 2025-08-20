@@ -10,18 +10,19 @@ import {
 	test,
 	vi,
 } from 'vitest'
-import { type StoredMessage, mockStore } from '../store/memory-store.ts'
-import { templateStore } from '../store/template-store.ts'
+import { mockStore, type StoredMessage } from '../store/memory-store.ts'
+import { TemplateStore } from '../store/template-store.ts'
 import type {
 	WhatsAppErrorResponse,
 	WhatsAppSendMessageRequest,
 	WhatsAppSendMessageResponse,
 } from '../types/api-types.ts'
-import { messagesRouter } from './messages.ts'
+import { createMessagesRouter } from './messages.ts'
 
 describe('Messages API Integration Tests', () => {
 	let server: ReturnType<typeof serve>
 	let mockWebhookServer: ReturnType<typeof serve>
+	let templateStore: TemplateStore
 	const baseUrl = 'http://localhost:3014'
 	const mockWebhookUrl = 'http://localhost:3015/webhook'
 	const testPhoneId = '12345678901'
@@ -33,9 +34,14 @@ describe('Messages API Integration Tests', () => {
 		// Set environment variable for webhook URL
 		process.env.WEBHOOK_URL = mockWebhookUrl
 
+		// Create and initialize template store for testing
+		templateStore = new TemplateStore('./templates')
+		await templateStore.initialize()
+
 		// Set up test messages server
 		const app = new Hono()
 		app.use('*', cors())
+		const messagesRouter = createMessagesRouter(templateStore)
 		app.route('/v22.0/:phoneNumberId', messagesRouter)
 
 		server = serve({
@@ -67,6 +73,7 @@ describe('Messages API Integration Tests', () => {
 	afterAll(async () => {
 		server?.close()
 		mockWebhookServer?.close()
+		await templateStore?.cleanup()
 	})
 
 	beforeEach(() => {

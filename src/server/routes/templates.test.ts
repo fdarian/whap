@@ -2,19 +2,25 @@ import { serve } from '@hono/node-server'
 import { Hono } from 'hono'
 import { cors } from 'hono/cors'
 import { afterAll, beforeAll, describe, expect, test } from 'vitest'
-import { templateStore } from '../store/template-store.ts'
 import type { Template } from '../store/template-store.ts'
-import { templatesRouter } from './templates.ts'
+import { TemplateStore } from '../store/template-store.ts'
+import { createTemplatesRouter } from './templates.ts'
 
 describe('Templates API Integration Tests', () => {
 	let server: ReturnType<typeof serve>
+	let templateStore: TemplateStore
 	const baseUrl = 'http://localhost:3011'
 	const testBusinessId = 'test-business-123'
 
 	beforeAll(async () => {
+		// Create and initialize template store for testing
+		templateStore = new TemplateStore('./templates')
+		await templateStore.initialize()
+
 		// Set up test server
 		const app = new Hono()
 		app.use('*', cors())
+		const templatesRouter = createTemplatesRouter(templateStore)
 		app.route('/v22.0', templatesRouter)
 
 		server = serve({
@@ -22,15 +28,13 @@ describe('Templates API Integration Tests', () => {
 			port: 3011,
 		})
 
-		// Initialize template store for testing
-		await templateStore.initialize()
-
 		// Wait a bit for server to start
 		await new Promise((resolve) => setTimeout(resolve, 500))
 	})
 
 	afterAll(async () => {
 		server?.close()
+		await templateStore?.cleanup()
 	})
 
 	describe('GET /v22.0/{business-account-id}/message_templates', () => {

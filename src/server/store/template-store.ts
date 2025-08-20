@@ -1,6 +1,7 @@
-import { readFile, readdir } from 'node:fs/promises'
+import { readdir, readFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import type { FSWatcher } from 'chokidar'
+import type { TemplateResolver } from '../template-resolver.ts'
 import type { Template, TemplateComponent } from '../types/api-types.ts'
 import { validateTemplateData } from '../utils/validator.ts'
 
@@ -83,25 +84,35 @@ export class TemplateStore {
 	private watcher: FSWatcher | null = null
 	private templatesDir: string
 	private isWatching = false
+	private templateResolver?: TemplateResolver
 
-	constructor(templatesDir = './templates') {
+	constructor(
+		templatesDir = './templates',
+		templateResolver?: TemplateResolver
+	) {
 		// Resolve to absolute path to ensure consistent file watching
 		this.templatesDir = join(process.cwd(), templatesDir)
+		this.templateResolver = templateResolver
 	}
 
 	/** Initialize the template store and start file watching */
 	async initialize(): Promise<void> {
 		console.log('🗂️  Initializing template store...')
 
-		// Load existing templates
-		await this.loadAllTemplates()
+		if (this.templateResolver) {
+			console.log('🔌 Using custom template resolution')
+			console.log('📁 Template store initialized with custom resolver')
+		} else {
+			// Load existing templates
+			await this.loadAllTemplates()
 
-		// Start file watcher
-		this.startWatcher()
+			// Start file watcher
+			this.startWatcher()
 
-		console.log(
-			`📁 Template store initialized with ${this.templates.size} templates`
-		)
+			console.log(
+				`📁 Template store initialized with ${this.templates.size} templates`
+			)
+		}
 	}
 
 	/** Start file watcher for hot-reload functionality */
@@ -273,6 +284,10 @@ export class TemplateStore {
 
 	/** Get template by name and language */
 	getTemplate(name: string, language = 'en'): Template | undefined {
+		if (this.templateResolver) {
+			return this.templateResolver.resolveTemplate(name, language) || undefined
+		}
+
 		const key = `${name}_${language}`
 		return this.templates.get(key)
 	}
@@ -295,7 +310,27 @@ export class TemplateStore {
 	}
 
 	/** Get template stats */
-	getStats() {
+	getStats(): {
+		totalTemplates: number | string
+		templatesByCategory:
+			| { MARKETING: number; UTILITY: number; AUTHENTICATION: number }
+			| string
+		usingCustomResolver: boolean
+		isWatching: boolean
+		templatesDir: string
+		templateKeys: string[] | string
+	} {
+		if (this.templateResolver) {
+			return {
+				totalTemplates: 'Using custom resolver',
+				templatesByCategory: 'Using custom resolver',
+				usingCustomResolver: true,
+				isWatching: false,
+				templatesDir: this.templatesDir,
+				templateKeys: 'Using custom resolver',
+			}
+		}
+
 		return {
 			totalTemplates: this.templates.size,
 			templatesByCategory: {
@@ -303,6 +338,7 @@ export class TemplateStore {
 				UTILITY: this.getTemplatesByCategory('UTILITY').length,
 				AUTHENTICATION: this.getTemplatesByCategory('AUTHENTICATION').length,
 			},
+			usingCustomResolver: false,
 			isWatching: this.isWatching,
 			templatesDir: this.templatesDir,
 			templateKeys: Array.from(this.templates.keys()),
