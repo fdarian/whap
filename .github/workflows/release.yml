@@ -57,24 +57,46 @@ jobs:
           VERSION=${GITHUB_REF_NAME#v}
           echo "version=$VERSION" >> $GITHUB_OUTPUT
 
-      - name: Update Homebrew formula
+      - name: Checkout tap repository
+        uses: actions/checkout@v4
+        with:
+          repository: fdarian/homebrew-tap
+          path: homebrew-tap
+          token: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+
+      - name: Update Homebrew formula in tap
         run: |
           VERSION="${{ steps.version.outputs.version }}"
           SHA256="${{ steps.checksum.outputs.sha256 }}"
           
-          # Update version, URL, and SHA256 in Formula/whap.rb
-          sed -i "s/version \".*\"/version \"$VERSION\"/" Formula/whap.rb
-          sed -i "s|url \".*\"|url \"https://github.com/fdarian/whap/releases/download/v$VERSION/whap-darwin-x64.tar.gz\"|" Formula/whap.rb
-          sed -i "s/sha256 \".*\"/sha256 \"$SHA256\"/" Formula/whap.rb
+          # Create Formula directory if it doesn't exist
+          mkdir -p homebrew-tap/Formula
+          
+          # Create or update the formula
+          cat > homebrew-tap/Formula/whap.rb << EOF
+          class Whap < Formula
+            desc "CLI and mock server for testing WhatsApp integration"
+            homepage "https://github.com/fdarian/whap"
+            version "$VERSION"
+            url "https://github.com/fdarian/whap/releases/download/v$VERSION/whap-darwin-x64.tar.gz"
+            sha256 "$SHA256"
+            license "MIT"
+          
+            def install
+              bin.install "whap"
+            end
+          
+            test do
+              system "#{bin}/whap", "--version"
+            end
+          end
+          EOF
 
-      - name: Configure git
+      - name: Commit and push formula update to tap
         run: |
+          cd homebrew-tap
           git config --local user.email "action@github.com"
           git config --local user.name "GitHub Action"
-
-      - name: Commit and push formula update
-        run: |
-          VERSION="${{ steps.version.outputs.version }}"
           git add Formula/whap.rb
-          git commit -m "chore: update Homebrew formula for version $VERSION"
-          git push origin HEAD:main
+          git commit -m "chore: update whap formula to ${{ steps.version.outputs.version }}" || echo "No changes to commit"
+          git push
