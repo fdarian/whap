@@ -17,17 +17,6 @@ process.on('SIGTERM', () => {
 	process.exit(0)
 })
 
-// Handle uncaught exceptions
-process.on('uncaughtException', (error) => {
-	console.error('Uncaught Exception:', error)
-	process.exit(1)
-})
-
-process.on('unhandledRejection', (reason) => {
-	console.error('Unhandled Rejection:', reason)
-	process.exit(1)
-})
-
 // Run the CLI
 run([serverCommand, tuiCommand], {
 	name: 'whap',

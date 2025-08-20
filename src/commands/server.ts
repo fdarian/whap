@@ -14,11 +14,11 @@ export const serverCommand = command({
 			const server = await startServer(opts.port)
 
 			// Handle graceful shutdown
-			const gracefulShutdown = () => {
+			const gracefulShutdown = (exitCode = 0) => {
 				console.log('\n⚡ Shutting down server gracefully...')
 				server.close(() => {
 					console.log('✅ Server closed successfully')
-					process.exit(0)
+					process.exit(exitCode)
 				})
 			}
 
@@ -29,12 +29,12 @@ export const serverCommand = command({
 			// Keep the process alive
 			process.on('uncaughtException', (error) => {
 				console.error('❌ Uncaught Exception:', error)
-				gracefulShutdown()
+				gracefulShutdown(1)
 			})
 
 			process.on('unhandledRejection', (reason, promise) => {
 				console.error('❌ Unhandled Rejection at:', promise, 'reason:', reason)
-				gracefulShutdown()
+				gracefulShutdown(1)
 			})
 		} catch (error) {
 			console.error('❌ Failed to start server:', error)

@@ -12,6 +12,23 @@ export const tuiCommand = command({
 	handler: async (opts) => {
 		try {
 			console.log(`Starting TUI interface connecting to ${opts.serverUrl}`)
+
+			// Handle uncaught exceptions for TUI
+			process.on('uncaughtException', (error) => {
+				console.error('❌ Uncaught Exception in TUI:', error)
+				process.exit(1)
+			})
+
+			process.on('unhandledRejection', (reason, promise) => {
+				console.error(
+					'❌ Unhandled Rejection in TUI at:',
+					promise,
+					'reason:',
+					reason
+				)
+				process.exit(1)
+			})
+
 			startTUI({ serverUrl: opts.serverUrl })
 		} catch (error) {
 			console.error('Failed to start TUI interface:', error)
