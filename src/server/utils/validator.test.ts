@@ -5,8 +5,8 @@ import type {
 	WhatsAppTypingRequest,
 } from '../types/api-types.ts'
 import {
-	type ValidationError,
 	formatValidationErrorForAPI,
+	type ValidationError,
 	validateTemplateData,
 	validateWhatsAppMessageRequest,
 	validateWhatsAppTypingRequest,
@@ -143,7 +143,7 @@ describe('WhatsApp Typing Request Validation', () => {
 		const validTypingRequest: WhatsAppTypingRequest = {
 			messaging_product: 'whatsapp',
 			status: 'read',
-			message_id: 'msg_123456',
+			message_id: 'wamid.msg_123456',
 			typing_indicator: {
 				type: 'text',
 			},
@@ -160,7 +160,7 @@ describe('WhatsApp Typing Request Validation', () => {
 		const invalidRequest = {
 			messaging_product: 'whatsapp',
 			status: 'invalid_status',
-			message_id: 'msg_123456',
+			message_id: 'wamid.msg_123456',
 			typing_indicator: { type: 'text' },
 		}
 
@@ -189,7 +189,7 @@ describe('WhatsApp Typing Request Validation', () => {
 		const invalidRequest = {
 			messaging_product: 'whatsapp',
 			status: 'read',
-			message_id: 'msg_123456',
+			message_id: 'wamid.msg_123456',
 		}
 
 		const result = validateWhatsAppTypingRequest(invalidRequest)

@@ -52,6 +52,7 @@ export interface Template {
 export class ApiClient {
 	private baseUrl
 	private client
+	private messageIdCounter = 1
 
 	constructor(baseUrl = `http://localhost:${process.env.PORT ?? 3010}`) {
 		this.baseUrl = baseUrl
@@ -60,6 +61,14 @@ export class ApiClient {
 			timeout: 5000,
 			retry: 2,
 		})
+	}
+
+	// Generate realistic WhatsApp message ID
+	private generateWhatsAppMessageId(): string {
+		const prefix = 'wamid.'
+		const timestamp = Date.now().toString()
+		const random = Math.random().toString(36).substring(2, 15)
+		return `${prefix}${timestamp}_${random}_${this.messageIdCounter++}`
 	}
 
 	async getStatus(): Promise<ServerStatus> {
@@ -72,7 +81,7 @@ export class ApiClient {
 		to: string,
 		text: string
 	): Promise<{ messageId: string }> {
-		const messageId = uuidv4()
+		const messageId = this.generateWhatsAppMessageId()
 		const payload = {
 			from: from,
 			to: to,
@@ -104,7 +113,7 @@ export class ApiClient {
 		templateName: string,
 		parameters: string[] = []
 	): Promise<{ messageId: string }> {
-		const messageId = uuidv4()
+		const messageId = this.generateWhatsAppMessageId()
 		const payload = {
 			messaging_product: 'whatsapp',
 			to,
