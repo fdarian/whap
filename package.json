@@ -6,6 +6,7 @@
 		"whap": "./dist/whap"
 	},
 	"scripts": {
+		"whap": "bun run src/index.ts",
 		"build": "bun build src/index.ts --compile --outfile dist/whap ",
 		"dev:server": "bun run --watch src/server/server.ts",
 		"test": "vitest run",
