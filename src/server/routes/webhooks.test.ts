@@ -10,7 +10,7 @@ import {
 	test,
 	vi,
 } from 'vitest'
-import { getWebhookUrl, setWebhookUrl } from '../config.ts'
+import { getWebhookUrl, resetWebhookConfig, setWebhookUrl } from '../config.ts'
 import type {
 	SimulateMessageParams,
 	WebhookPayload,
@@ -64,15 +64,19 @@ describe('Webhooks API Integration Tests', () => {
 		await new Promise((resolve) => setTimeout(resolve, 500))
 	})
 
-	afterAll(async () => {
-		server?.close()
-		mockWebhookServer?.close()
-	})
-
 	beforeEach(() => {
+		// Reset webhook configuration before each test
+		resetWebhookConfig()
+		// Ensure the environment variable is set for most tests
+		process.env.WEBHOOK_URL = mockWebhookUrl
 		// Clear received webhooks before each test
 		receivedWebhooks.length = 0
 		vi.clearAllMocks()
+	})
+
+	afterAll(async () => {
+		server?.close()
+		mockWebhookServer?.close()
 	})
 
 	describe('Webhook Configuration', () => {
@@ -88,14 +92,16 @@ describe('Webhooks API Integration Tests', () => {
 		test('should handle missing webhook configuration', () => {
 			// Temporarily clear the environment variable
 			const originalUrl = process.env.WEBHOOK_URL
-			process.env.WEBHOOK_URL = undefined
+			delete process.env.WEBHOOK_URL
 
-			// Reset config by creating a new instance (simulate no config)
+			// Reset config to force re-initialization
+			resetWebhookConfig()
 			const result = getWebhookUrl('test')
 			expect(result).toBeNull()
 
-			// Restore the original URL
+			// Restore the original URL and reset config
 			process.env.WEBHOOK_URL = originalUrl
+			resetWebhookConfig()
 		})
 	})
 
@@ -241,6 +247,11 @@ describe('Webhooks API Integration Tests', () => {
 		})
 
 		test('should return error when webhook URL is not configured', async () => {
+			// Temporarily clear the environment variable to simulate no config
+			const originalUrl = process.env.WEBHOOK_URL
+			delete process.env.WEBHOOK_URL
+			resetWebhookConfig()
+
 			const unconfiguredPhoneId = '99999999999'
 			const simulateParams: SimulateMessageParams = {
 				from: '1234567890',
@@ -266,6 +277,10 @@ describe('Webhooks API Integration Tests', () => {
 			const data = (await response.json()) as WhatsAppErrorResponse
 			expect(data.error.message).toContain('No webhook URL configured')
 			expect(data.error.type).toBe('webhook_not_configured')
+
+			// Restore the original URL and reset config
+			process.env.WEBHOOK_URL = originalUrl
+			resetWebhookConfig()
 		})
 	})
 

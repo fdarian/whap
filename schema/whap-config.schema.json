@@ -1,0 +1,20 @@
+{
+	"$schema": "http://json-schema.org/draft-07/schema#",
+	"$id": "https://raw.githubusercontent.com/fdarian/whap/main/schema/whap-config.schema.json",
+	"title": "Whap Configuration",
+	"description": "Configuration file for Whap WhatsApp Mock Server",
+	"type": "object",
+	"properties": {
+		"webhookUrls": {
+			"type": "array",
+			"description": "Array of webhook URLs to receive WhatsApp webhook events. Can be URLs (fallback) or phoneNumber:URL mappings",
+			"items": {
+				"type": "string",
+				"description": "Either a URL (e.g., 'http://localhost:3000/webhook') or phone:URL mapping (e.g., '1234567890:http://localhost:3000/webhook')"
+			},
+			"uniqueItems": true,
+			"minItems": 1
+		}
+	},
+	"additionalProperties": false
+}

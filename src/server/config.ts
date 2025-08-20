@@ -1,3 +1,5 @@
+import { getWebhookMappingsFromConfig } from './configuration.ts'
+
 export interface WebhookConfig {
 	mappings: Map<string, string>
 	fallbackUrl: string | null
@@ -57,28 +59,67 @@ function parseWebhookMappings(): Map<string, string> {
 }
 
 /**
- * Initialize webhook configuration from CLI arguments and environment variables
+ * Initialize webhook configuration from CLI arguments, environment variables, and config file
+ * Priority order: CLI arguments > environment variables > config file
  */
 function initializeWebhookConfig(): WebhookConfig {
-	const mappings = parseWebhookMappings()
-	const fallbackUrl = process.env.WEBHOOK_URL || null
+	const cliMappings = parseWebhookMappings()
 
-	if (mappings.size === 0 && !fallbackUrl) {
+	// Get fallback URL from environment variable
+	let fallbackUrl = process.env.WEBHOOK_URL || null
+
+	// Load config file mappings and fallback URLs
+	const configMappings = getWebhookMappingsFromConfig()
+
+	// Merge CLI mappings with config file mappings (CLI takes precedence)
+	const finalMappings = new Map(configMappings.mappings)
+	for (const [phone, url] of cliMappings) {
+		finalMappings.set(phone, url)
+	}
+
+	// If no env variable set, use the first fallback URL from config file
+	if (!fallbackUrl && configMappings.fallbackUrls.length > 0) {
+		fallbackUrl = configMappings.fallbackUrls[0]
+		if (configMappings.fallbackUrls.length > 1) {
+			console.log(
+				`📄 Using first fallback webhook URL from config file: ${fallbackUrl}`
+			)
+			console.log(
+				`📄 Additional fallback URLs in config file: ${configMappings.fallbackUrls.slice(1).join(', ')}`
+			)
+		} else {
+			console.log(
+				`📄 Using fallback webhook URL from config file: ${fallbackUrl}`
+			)
+		}
+	}
+
+	if (finalMappings.size === 0 && !fallbackUrl) {
 		console.warn(
-			'⚠️  No webhook URLs configured. Set WEBHOOK_URL environment variable or use --webhook-url CLI arguments'
+			'⚠️  No webhook URLs configured. Set WEBHOOK_URL environment variable, use --webhook-url CLI arguments, or create whap.json config file'
 		)
-	} else if (fallbackUrl && mappings.size === 0) {
-		console.log(`🔗 Using fallback webhook URL: ${fallbackUrl}`)
+	} else if (fallbackUrl && finalMappings.size === 0) {
+		const source = process.env.WEBHOOK_URL
+			? 'environment variable'
+			: 'config file'
+		console.log(`🔗 Using fallback webhook URL from ${source}: ${fallbackUrl}`)
 	}
 
 	return {
-		mappings,
+		mappings: finalMappings,
 		fallbackUrl,
 	}
 }
 
 // Global configuration instance
 let webhookConfig: WebhookConfig | null = null
+
+/**
+ * Reset the global webhook configuration (useful for testing)
+ */
+export function resetWebhookConfig(): void {
+	webhookConfig = null
+}
 
 /**
  * Get the global webhook configuration (lazy initialization)

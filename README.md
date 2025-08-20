@@ -49,6 +49,53 @@ pnpm run start:cli
 
 The mock server runs on port **3010** and provides WhatsApp Cloud API compatible endpoints.
 
+## Configuration
+
+### Webhook URLs
+
+Configure webhook URLs to receive WhatsApp events using any of these methods (in priority order):
+
+#### 1. Configuration File (Recommended)
+
+Create a `whap.json` file in your project root:
+
+```json
+{
+  "$schema": "./schema/whap-config.schema.json",
+  "webhookUrls": [
+    "1234567890:http://localhost:4000/webhook",
+    "9876543210:http://localhost:5000/webhook",
+    "http://localhost:3000/fallback-webhook"
+  ]
+}
+```
+
+**Format Options:**
+- `"phoneNumber:url"` - Phone-specific webhook mapping
+- `"url"` - Fallback webhook URL (used when no phone-specific mapping exists)
+
+#### 2. Environment Variable
+
+```bash
+export WEBHOOK_URL=http://localhost:4000/webhook
+pnpm run start:server
+```
+
+#### 3. CLI Arguments
+
+```bash
+pnpm run start:server -- --webhook-url 1234567890:http://localhost:4000/webhook
+```
+
+### Configuration Priority
+
+Configuration sources are applied in this order (highest to lowest priority):
+1. **CLI arguments** (`--webhook-url`)
+2. **Environment variables** (`WEBHOOK_URL`)  
+3. **Configuration file** (`whap.json`)
+
+Webhook URLs without phone numbers are used as fallback URLs when no phone-specific mapping exists.
+
 ## Template System
 
 ### Quick Template Setup
