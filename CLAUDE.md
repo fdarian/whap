@@ -30,6 +30,51 @@ bun whap tui           # Start TUI interface
 - **Scripts**: Check [package.json](mdc:package.json) for available commands
 - **Port**: Mock server runs on port 3010 (default)
 
+### Configuration
+- **whap.json**: Optional config file for webhook URL mappings
+  - Maps phone numbers to specific webhook endpoints
+  - See `src/server/configuration.ts` for schema and loading
+  - See `src/server/config.ts` for webhook priority (CLI > env > config file)
+
+### Custom Template Resolution
+
+Whap now supports custom template resolution via external commands instead of only reading from the `templates/` directory.
+
+#### Configuration
+Add to `whap.json`:
+```json
+{
+  "templates": {
+    "cmd": "bun run resolve-template.ts"
+  }
+}
+```
+
+#### How it Works
+- When `templates.cmd` is configured, whap executes the command for each template request
+- Command format: `[cmd] [template_name] --lang [language]`
+- The command should output valid JSON matching the Template structure
+- File watching is disabled when using custom resolution
+
+#### Example Template Resolver Script
+```typescript
+// resolve-template.ts
+const name = process.argv[2]
+const langIndex = process.argv.indexOf('--lang')
+const language = langIndex > -1 ? process.argv[langIndex + 1] : 'en'
+
+const template = {
+  name,
+  language,
+  category: 'UTILITY',
+  components: [
+    { type: 'BODY', text: `Dynamic template for ${name}` }
+  ]
+}
+
+console.log(JSON.stringify(template))
+```
+
 ### Detailed Information
 - Architecture & Components: [whatsapp-architecture.mdc](mdc:.cursor/rules/whatsapp-architecture.mdc)
 - Development Guidelines: [whatsapp-development.mdc](mdc:.cursor/rules/whatsapp-development.mdc)

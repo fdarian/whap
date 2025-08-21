@@ -1,5 +1,6 @@
-import { readFile, readdir } from 'node:fs/promises'
+import { readdir, readFile } from 'node:fs/promises'
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
+import { TemplateResolver } from '../template-resolver.ts'
 import { type Template, TemplateStore } from './template-store.ts'
 
 // Mock fs promises for controlled testing
@@ -243,12 +244,21 @@ describe('TemplateStore', () => {
 			const stats = templateStore.getStats()
 
 			expect(stats.totalTemplates).toBe(2)
-			expect(stats.templatesByCategory.UTILITY).toBe(1)
-			expect(stats.templatesByCategory.AUTHENTICATION).toBe(1)
-			expect(stats.templatesByCategory.MARKETING).toBe(0)
+			expect(stats.usingCustomResolver).toBe(false)
+			if (!stats.usingCustomResolver) {
+				const categoryStats = stats.templatesByCategory as {
+					MARKETING: number
+					UTILITY: number
+					AUTHENTICATION: number
+				}
+				const templateKeys = stats.templateKeys as string[]
+				expect(categoryStats.UTILITY).toBe(1)
+				expect(categoryStats.AUTHENTICATION).toBe(1)
+				expect(categoryStats.MARKETING).toBe(0)
+				expect(templateKeys).toHaveLength(2)
+			}
 			expect(stats.isWatching).toBe(true)
 			expect(stats.templatesDir).toMatch(/test-templates$/)
-			expect(stats.templateKeys).toHaveLength(2)
 		})
 	})
 
@@ -322,6 +332,242 @@ describe('TemplateStore', () => {
 			expect(templateStore.getTemplate('test', 'en')?.category).toBe(
 				'MARKETING'
 			)
+		})
+	})
+
+	describe('TemplateStore with Custom Resolver', () => {
+		let mockResolver: TemplateResolver
+		let templateStoreWithResolver: TemplateStore
+
+		// Mock template that our resolver will return
+		const mockResolvedTemplate: Template = {
+			name: 'resolved_template',
+			language: 'en',
+			category: 'UTILITY',
+			components: [
+				{
+					type: 'BODY',
+					text: 'Test template from resolver',
+				},
+			],
+		}
+
+		beforeEach(() => {
+			vi.clearAllMocks()
+		})
+
+		afterEach(async () => {
+			if (templateStoreWithResolver) {
+				await templateStoreWithResolver.cleanup()
+			}
+		})
+
+		test('should use custom resolver instead of file system', async () => {
+			// Create a mock resolver that returns our test template
+			mockResolver = new TemplateResolver(
+				"bun -e \"console.log(JSON.stringify({name: process.argv[2], language: process.argv[4] || 'en', category: 'UTILITY', components: [{type: 'BODY', text: 'Test template'}]}))\""
+			)
+
+			// Mock the resolver's resolveTemplate method
+			const resolveTemplateSpy = vi
+				.spyOn(mockResolver, 'resolveTemplate')
+				.mockReturnValue(mockResolvedTemplate)
+
+			// Initialize store with the resolver
+			templateStoreWithResolver = new TemplateStore(
+				'./test-templates',
+				mockResolver
+			)
+			await templateStoreWithResolver.initialize()
+
+			// Test that getTemplate uses the resolver
+			const result = templateStoreWithResolver.getTemplate(
+				'test_template',
+				'en'
+			)
+
+			// Verify that the resolver was called
+			expect(resolveTemplateSpy).toHaveBeenCalledWith('test_template', 'en')
+			expect(result).toEqual(mockResolvedTemplate)
+
+			// Verify that file system methods were NOT called
+			expect(readdir).not.toHaveBeenCalled()
+			expect(readFile).not.toHaveBeenCalled()
+		})
+
+		test('should handle resolver errors gracefully', async () => {
+			// Create a resolver that will return null (simulating failure)
+			mockResolver = new TemplateResolver('invalid-command-that-fails')
+			const resolveTemplateSpy = vi
+				.spyOn(mockResolver, 'resolveTemplate')
+				.mockReturnValue(null)
+
+			templateStoreWithResolver = new TemplateStore(
+				'./test-templates',
+				mockResolver
+			)
+			await templateStoreWithResolver.initialize()
+
+			// Test that getTemplate returns undefined when resolver fails
+			const result = templateStoreWithResolver.getTemplate(
+				'failing_template',
+				'en'
+			)
+
+			expect(resolveTemplateSpy).toHaveBeenCalledWith('failing_template', 'en')
+			expect(result).toBeUndefined()
+		})
+
+		test('should not start file watcher when resolver is provided', async () => {
+			// Mock the chokidar import to track if it's called
+			const chokidarMock = await import('chokidar')
+			const watchSpy = vi.spyOn(chokidarMock.default, 'watch')
+
+			mockResolver = new TemplateResolver('echo test')
+			templateStoreWithResolver = new TemplateStore(
+				'./test-templates',
+				mockResolver
+			)
+
+			await templateStoreWithResolver.initialize()
+
+			// Verify that chokidar.watch was never called
+			expect(watchSpy).not.toHaveBeenCalled()
+
+			// Verify stats show file watching is disabled
+			const stats = templateStoreWithResolver.getStats()
+			expect(stats.isWatching).toBe(false)
+			expect(stats.usingCustomResolver).toBe(true)
+		})
+
+		test('should pass correct arguments to command', async () => {
+			// Create a resolver with a command that we can verify receives correct arguments
+			mockResolver = new TemplateResolver('test-command')
+
+			// Mock the resolveTemplate method to capture the arguments
+			const resolveTemplateSpy = vi
+				.spyOn(mockResolver, 'resolveTemplate')
+				.mockReturnValue(mockResolvedTemplate)
+
+			templateStoreWithResolver = new TemplateStore(
+				'./test-templates',
+				mockResolver
+			)
+			await templateStoreWithResolver.initialize()
+
+			// Test with different name and language combinations
+			templateStoreWithResolver.getTemplate('welcome_message', 'es')
+			expect(resolveTemplateSpy).toHaveBeenCalledWith('welcome_message', 'es')
+
+			templateStoreWithResolver.getTemplate('order_confirmation', 'fr')
+			expect(resolveTemplateSpy).toHaveBeenCalledWith(
+				'order_confirmation',
+				'fr'
+			)
+
+			// Test with default language
+			templateStoreWithResolver.getTemplate('test_template')
+			expect(resolveTemplateSpy).toHaveBeenCalledWith('test_template', 'en')
+		})
+
+		test('should return correct stats when using custom resolver', async () => {
+			mockResolver = new TemplateResolver('test-command')
+			templateStoreWithResolver = new TemplateStore(
+				'./custom-dir',
+				mockResolver
+			)
+			await templateStoreWithResolver.initialize()
+
+			const stats = templateStoreWithResolver.getStats()
+
+			expect(stats.usingCustomResolver).toBe(true)
+			expect(stats.isWatching).toBe(false)
+			expect(stats.totalTemplates).toBe('Using custom resolver')
+			expect(stats.templatesByCategory).toBe('Using custom resolver')
+			expect(stats.templateKeys).toBe('Using custom resolver')
+			expect(stats.templatesDir).toMatch(/custom-dir$/)
+		})
+
+		test('should not call file system operations during initialization with resolver', async () => {
+			mockResolver = new TemplateResolver('test-command')
+			templateStoreWithResolver = new TemplateStore(
+				'./test-templates',
+				mockResolver
+			)
+
+			await templateStoreWithResolver.initialize()
+
+			// Verify that no file system operations were performed
+			expect(readdir).not.toHaveBeenCalled()
+			expect(readFile).not.toHaveBeenCalled()
+		})
+
+		test('should handle resolver returning different templates for same name with different languages', async () => {
+			const englishTemplate: Template = {
+				name: 'multi_lang',
+				language: 'en',
+				category: 'UTILITY',
+				components: [{ type: 'BODY', text: 'Hello' }],
+			}
+
+			const spanishTemplate: Template = {
+				name: 'multi_lang',
+				language: 'es',
+				category: 'UTILITY',
+				components: [{ type: 'BODY', text: 'Hola' }],
+			}
+
+			mockResolver = new TemplateResolver('test-command')
+			const resolveTemplateSpy = vi
+				.spyOn(mockResolver, 'resolveTemplate')
+				.mockImplementation((name, language) => {
+					if (name === 'multi_lang' && language === 'en') return englishTemplate
+					if (name === 'multi_lang' && language === 'es') return spanishTemplate
+					return null
+				})
+
+			templateStoreWithResolver = new TemplateStore(
+				'./test-templates',
+				mockResolver
+			)
+			await templateStoreWithResolver.initialize()
+
+			const enResult = templateStoreWithResolver.getTemplate('multi_lang', 'en')
+			const esResult = templateStoreWithResolver.getTemplate('multi_lang', 'es')
+
+			expect(enResult).toEqual(englishTemplate)
+			expect(esResult).toEqual(spanishTemplate)
+			expect(resolveTemplateSpy).toHaveBeenCalledWith('multi_lang', 'en')
+			expect(resolveTemplateSpy).toHaveBeenCalledWith('multi_lang', 'es')
+		})
+
+		test('should not modify templates returned by resolver', async () => {
+			const originalTemplate: Template = {
+				name: 'immutable_template',
+				language: 'en',
+				category: 'MARKETING',
+				components: [{ type: 'BODY', text: 'Original content' }],
+			}
+
+			mockResolver = new TemplateResolver('test-command')
+			vi.spyOn(mockResolver, 'resolveTemplate').mockReturnValue(
+				originalTemplate
+			)
+
+			templateStoreWithResolver = new TemplateStore(
+				'./test-templates',
+				mockResolver
+			)
+			await templateStoreWithResolver.initialize()
+
+			const result = templateStoreWithResolver.getTemplate(
+				'immutable_template',
+				'en'
+			)
+
+			// The template should be returned as-is from the resolver
+			expect(result).toEqual(originalTemplate)
+			expect(result).toBe(originalTemplate) // Should be the exact same object reference
 		})
 	})
 })

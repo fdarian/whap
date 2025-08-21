@@ -5,19 +5,21 @@ import { Hono } from 'hono'
 import { cors } from 'hono/cors'
 import { logger } from 'hono/logger'
 import { getWebhookConfig } from './config.ts'
+import { getTemplatesConfig } from './configuration.ts'
 import { conversationRouter } from './routes/conversation.ts'
-import { messagesRouter } from './routes/messages.ts'
+import { createMessagesRouter, messagesRouter } from './routes/messages.ts'
 import {
 	startStatsInterval,
 	statusRouter,
 	stopStatsInterval,
 } from './routes/status.ts'
-import { templatesRouter } from './routes/templates.ts'
+import { createTemplatesRouter, templatesRouter } from './routes/templates.ts'
 import { webhooksRouter } from './routes/webhooks.ts'
-import { templateStore } from './store/template-store.ts'
+import { TemplateStore } from './store/template-store.ts'
+import { TemplateResolver } from './template-resolver.ts'
 import { addClient, removeClient } from './websocket.ts'
 
-function createApp() {
+function createApp(templateStore: TemplateStore) {
 	const app = new Hono()
 
 	// Initialize webhook configuration from CLI arguments and environment
@@ -96,6 +98,11 @@ function createApp() {
 			}
 		})
 	}
+
+	// Create routers with the store instance
+	const messagesRouter = createMessagesRouter(templateStore)
+	const templatesRouter = createTemplatesRouter(templateStore)
+
 	app.route('/v22.0', messagesRouter)
 	app.route('/v22.0', templatesRouter)
 	// Assuming 22 and 23 are the same
@@ -164,13 +171,21 @@ function createApp() {
 }
 
 export async function startServer(port = 3010) {
-	// Initialize template store with hot-reload
-	await templateStore.initialize().catch((error) => {
+	// Load templates configuration and create template store
+	const templatesConfig = getTemplatesConfig()
+	let templateResolver: TemplateResolver | undefined
+	if (templatesConfig?.cmd) {
+		templateResolver = new TemplateResolver(templatesConfig.cmd)
+	}
+
+	// Create template store with optional resolver
+	const store = new TemplateStore('./templates', templateResolver)
+	await store.initialize().catch((error) => {
 		console.error('❌ Failed to initialize template store:', error)
 		throw error
 	})
 
-	const { app, injectWebSocket } = createApp()
+	const { app, injectWebSocket } = createApp(store)
 
 	const server = serve({
 		fetch: app.fetch,

@@ -1,16 +1,13 @@
 import { beforeEach, describe, expect, test, vi } from 'vitest'
-import { templateStore } from '../store/template-store.ts'
+import type { TemplateStore } from '../store/template-store.ts'
 import type { Template } from '../types/api-types.ts'
 import { processTemplate } from './messages.ts'
 
-// Mock template store
-vi.mock('../store/template-store.ts', () => ({
-	templateStore: {
-		getTemplate: vi.fn(),
-	},
-}))
-
-const mockTemplateStore = vi.mocked(templateStore)
+// Create mock template store
+const mockGetTemplate = vi.fn()
+const mockTemplateStore: TemplateStore = {
+	getTemplate: mockGetTemplate,
+} as any
 
 describe('processTemplate - Unit Tests', () => {
 	beforeEach(() => {
@@ -31,7 +28,7 @@ describe('processTemplate - Unit Tests', () => {
 				],
 			}
 
-			mockTemplateStore.getTemplate.mockReturnValue(mockTemplate)
+			mockGetTemplate.mockReturnValue(mockTemplate)
 
 			const parameters = [
 				{ type: 'text' as const, parameter_name: 'name', text: 'John Doe' },
@@ -47,7 +44,12 @@ describe('processTemplate - Unit Tests', () => {
 				},
 			]
 
-			const result = processTemplate('welcome_message_named', 'en', parameters)
+			const result = processTemplate(
+				mockTemplateStore,
+				'welcome_message_named',
+				'en',
+				parameters
+			)
 
 			expect(result.error).toBeUndefined()
 			expect(result.processedTemplate).toBeDefined()
@@ -69,7 +71,7 @@ describe('processTemplate - Unit Tests', () => {
 				],
 			}
 
-			mockTemplateStore.getTemplate.mockReturnValue(mockTemplate)
+			mockGetTemplate.mockReturnValue(mockTemplate)
 
 			const parameters = [
 				{ type: 'text' as const, parameter_name: 'user_name', text: 'Alice' },
@@ -81,7 +83,12 @@ describe('processTemplate - Unit Tests', () => {
 				{ type: 'text' as const, parameter_name: 'user.id', text: '12345' },
 			]
 
-			const result = processTemplate('special_chars', 'en', parameters)
+			const result = processTemplate(
+				mockTemplateStore,
+				'special_chars',
+				'en',
+				parameters
+			)
 
 			expect(result.error).toBeUndefined()
 			expect(result.processedTemplate?.components[0]?.text).toBe(
@@ -102,14 +109,19 @@ describe('processTemplate - Unit Tests', () => {
 				],
 			}
 
-			mockTemplateStore.getTemplate.mockReturnValue(mockTemplate)
+			mockGetTemplate.mockReturnValue(mockTemplate)
 
 			const parameters = [
 				{ type: 'text' as const, parameter_name: 'Name', text: 'John' },
 				{ type: 'text' as const, parameter_name: 'name', text: 'Jane' },
 			]
 
-			const result = processTemplate('case_sensitive', 'en', parameters)
+			const result = processTemplate(
+				mockTemplateStore,
+				'case_sensitive',
+				'en',
+				parameters
+			)
 
 			expect(result.error).toBeUndefined()
 			expect(result.processedTemplate?.components[0]?.text).toBe(
@@ -132,7 +144,7 @@ describe('processTemplate - Unit Tests', () => {
 				],
 			}
 
-			mockTemplateStore.getTemplate.mockReturnValue(mockTemplate)
+			mockGetTemplate.mockReturnValue(mockTemplate)
 
 			const parameters = [
 				{ type: 'text' as const, parameter_name: '1', text: 'Alice' },
@@ -141,6 +153,7 @@ describe('processTemplate - Unit Tests', () => {
 			]
 
 			const result = processTemplate(
+				mockTemplateStore,
 				'welcome_message_numbered',
 				'en',
 				parameters
@@ -165,7 +178,7 @@ describe('processTemplate - Unit Tests', () => {
 				],
 			}
 
-			mockTemplateStore.getTemplate.mockReturnValue(mockTemplate)
+			mockGetTemplate.mockReturnValue(mockTemplate)
 
 			const parameters = [
 				{ type: 'text' as const, parameter_name: '1', text: 'First' },
@@ -173,7 +186,12 @@ describe('processTemplate - Unit Tests', () => {
 				{ type: 'text' as const, parameter_name: '100', text: 'Hundredth' },
 			]
 
-			const result = processTemplate('multi_digit_params', 'en', parameters)
+			const result = processTemplate(
+				mockTemplateStore,
+				'multi_digit_params',
+				'en',
+				parameters
+			)
 
 			expect(result.error).toBeUndefined()
 			expect(result.processedTemplate?.components[0]?.text).toBe(
@@ -196,7 +214,7 @@ describe('processTemplate - Unit Tests', () => {
 				],
 			}
 
-			mockTemplateStore.getTemplate.mockReturnValue(mockTemplate)
+			mockGetTemplate.mockReturnValue(mockTemplate)
 
 			const parameters = [
 				{ type: 'text' as const, parameter_name: 'name', text: 'Bob' },
@@ -209,7 +227,12 @@ describe('processTemplate - Unit Tests', () => {
 				{ type: 'text' as const, parameter_name: '2', text: '+1-555-0123' },
 			]
 
-			const result = processTemplate('mixed_parameters', 'en', parameters)
+			const result = processTemplate(
+				mockTemplateStore,
+				'mixed_parameters',
+				'en',
+				parameters
+			)
 
 			expect(result.error).toBeUndefined()
 			expect(result.processedTemplate?.components[0]?.text).toBe(
@@ -238,7 +261,7 @@ describe('processTemplate - Unit Tests', () => {
 				],
 			}
 
-			mockTemplateStore.getTemplate.mockReturnValue(mockTemplate)
+			mockGetTemplate.mockReturnValue(mockTemplate)
 
 			const parameters = [
 				{ type: 'text' as const, parameter_name: 'name', text: 'Charlie' },
@@ -259,7 +282,12 @@ describe('processTemplate - Unit Tests', () => {
 				},
 			]
 
-			const result = processTemplate('multi_component_mixed', 'en', parameters)
+			const result = processTemplate(
+				mockTemplateStore,
+				'multi_component_mixed',
+				'en',
+				parameters
+			)
 
 			expect(result.error).toBeUndefined()
 			expect(result.processedTemplate?.components[0]?.text).toBe(
@@ -288,14 +316,19 @@ describe('processTemplate - Unit Tests', () => {
 				],
 			}
 
-			mockTemplateStore.getTemplate.mockReturnValue(mockTemplate)
+			mockGetTemplate.mockReturnValue(mockTemplate)
 
 			// Only provide one parameter, leaving others missing
 			const parameters = [
 				{ type: 'text' as const, parameter_name: 'name', text: 'David' },
 			]
 
-			const result = processTemplate('missing_params', 'en', parameters)
+			const result = processTemplate(
+				mockTemplateStore,
+				'missing_params',
+				'en',
+				parameters
+			)
 
 			expect(result.error).toBeUndefined()
 			expect(result.processedTemplate?.components[0]?.text).toBe(
@@ -316,7 +349,7 @@ describe('processTemplate - Unit Tests', () => {
 				],
 			}
 
-			mockTemplateStore.getTemplate.mockReturnValue(mockTemplate)
+			mockGetTemplate.mockReturnValue(mockTemplate)
 
 			const parameters: Array<{
 				type: 'text'
@@ -324,7 +357,12 @@ describe('processTemplate - Unit Tests', () => {
 				text: string
 			}> = []
 
-			const result = processTemplate('all_missing', 'en', parameters)
+			const result = processTemplate(
+				mockTemplateStore,
+				'all_missing',
+				'en',
+				parameters
+			)
 
 			expect(result.error).toBeUndefined()
 			expect(result.processedTemplate?.components[0]?.text).toBe(
@@ -345,7 +383,7 @@ describe('processTemplate - Unit Tests', () => {
 				],
 			}
 
-			mockTemplateStore.getTemplate.mockReturnValue(mockTemplate)
+			mockGetTemplate.mockReturnValue(mockTemplate)
 
 			const parameters = [
 				{ type: 'text' as const, parameter_name: 'name', text: 'Eve' },
@@ -353,7 +391,12 @@ describe('processTemplate - Unit Tests', () => {
 				// Missing: '1' and 'status'
 			]
 
-			const result = processTemplate('partial_mixed', 'en', parameters)
+			const result = processTemplate(
+				mockTemplateStore,
+				'partial_mixed',
+				'en',
+				parameters
+			)
 
 			expect(result.error).toBeUndefined()
 			expect(result.processedTemplate?.components[0]?.text).toBe(
@@ -376,14 +419,19 @@ describe('processTemplate - Unit Tests', () => {
 				],
 			}
 
-			mockTemplateStore.getTemplate.mockReturnValue(mockTemplate)
+			mockGetTemplate.mockReturnValue(mockTemplate)
 
 			const parameters = [
 				{ type: 'text' as const, parameter_name: 'name', text: '' },
 				{ type: 'text' as const, parameter_name: 'company', text: 'Tech Corp' },
 			]
 
-			const result = processTemplate('empty_values', 'en', parameters)
+			const result = processTemplate(
+				mockTemplateStore,
+				'empty_values',
+				'en',
+				parameters
+			)
 
 			expect(result.error).toBeUndefined()
 			expect(result.processedTemplate?.components[0]?.text).toBe(
@@ -404,7 +452,7 @@ describe('processTemplate - Unit Tests', () => {
 				],
 			}
 
-			mockTemplateStore.getTemplate.mockReturnValue(mockTemplate)
+			mockGetTemplate.mockReturnValue(mockTemplate)
 
 			const parameters = [
 				{
@@ -414,7 +462,12 @@ describe('processTemplate - Unit Tests', () => {
 				},
 			]
 
-			const result = processTemplate('whitespace_values', 'en', parameters)
+			const result = processTemplate(
+				mockTemplateStore,
+				'whitespace_values',
+				'en',
+				parameters
+			)
 
 			expect(result.error).toBeUndefined()
 			expect(result.processedTemplate?.components[0]?.text).toBe(
@@ -435,14 +488,19 @@ describe('processTemplate - Unit Tests', () => {
 				],
 			}
 
-			mockTemplateStore.getTemplate.mockReturnValue(mockTemplate)
+			mockGetTemplate.mockReturnValue(mockTemplate)
 
 			const parameters = [
 				{ type: 'text' as const, parameter_name: 'value', text: 'First' },
 				{ type: 'text' as const, parameter_name: 'value', text: 'Second' },
 			]
 
-			const result = processTemplate('duplicate_params', 'en', parameters)
+			const result = processTemplate(
+				mockTemplateStore,
+				'duplicate_params',
+				'en',
+				parameters
+			)
 
 			expect(result.error).toBeUndefined()
 			expect(result.processedTemplate?.components[0]?.text).toBe(
@@ -463,7 +521,7 @@ describe('processTemplate - Unit Tests', () => {
 				],
 			}
 
-			mockTemplateStore.getTemplate.mockReturnValue(mockTemplate)
+			mockGetTemplate.mockReturnValue(mockTemplate)
 
 			const parameters = [
 				{ type: 'text' as const, parameter_name: 'name', text: 'Frank' },
@@ -474,7 +532,12 @@ describe('processTemplate - Unit Tests', () => {
 				},
 			]
 
-			const result = processTemplate('malformed_placeholders', 'en', parameters)
+			const result = processTemplate(
+				mockTemplateStore,
+				'malformed_placeholders',
+				'en',
+				parameters
+			)
 
 			expect(result.error).toBeUndefined()
 			expect(result.processedTemplate?.components[0]?.text).toBe(
@@ -499,13 +562,18 @@ describe('processTemplate - Unit Tests', () => {
 				],
 			}
 
-			mockTemplateStore.getTemplate.mockReturnValue(mockTemplate)
+			mockGetTemplate.mockReturnValue(mockTemplate)
 
 			const parameters = [
 				{ type: 'text' as const, parameter_name: 'name', text: 'Grace' },
 			]
 
-			const result = processTemplate('no_text_component', 'en', parameters)
+			const result = processTemplate(
+				mockTemplateStore,
+				'no_text_component',
+				'en',
+				parameters
+			)
 
 			expect(result.error).toBeUndefined()
 			expect(result.processedTemplate?.components[0]?.text).toBe('Hello Grace')
@@ -515,13 +583,18 @@ describe('processTemplate - Unit Tests', () => {
 
 	describe('Template Not Found Scenarios', () => {
 		test('should return error when template is not found', () => {
-			mockTemplateStore.getTemplate.mockReturnValue(undefined)
+			mockGetTemplate.mockReturnValue(undefined)
 
 			const parameters = [
 				{ type: 'text' as const, parameter_name: 'name', text: 'Test' },
 			]
 
-			const result = processTemplate('non_existent_template', 'en', parameters)
+			const result = processTemplate(
+				mockTemplateStore,
+				'non_existent_template',
+				'en',
+				parameters
+			)
 
 			expect(result.processedTemplate).toBeNull()
 			expect(result.error).toBe(
@@ -530,13 +603,18 @@ describe('processTemplate - Unit Tests', () => {
 		})
 
 		test('should return error for wrong language', () => {
-			mockTemplateStore.getTemplate.mockReturnValue(undefined)
+			mockGetTemplate.mockReturnValue(undefined)
 
 			const parameters = [
 				{ type: 'text' as const, parameter_name: 'name', text: 'Test' },
 			]
 
-			const result = processTemplate('existing_template', 'es', parameters)
+			const result = processTemplate(
+				mockTemplateStore,
+				'existing_template',
+				'es',
+				parameters
+			)
 
 			expect(result.processedTemplate).toBeNull()
 			expect(result.error).toBe(
@@ -559,7 +637,7 @@ describe('processTemplate - Unit Tests', () => {
 				],
 			}
 
-			mockTemplateStore.getTemplate.mockReturnValue(mockTemplate)
+			mockGetTemplate.mockReturnValue(mockTemplate)
 
 			const parameters = [
 				{ type: 'text' as const, parameter_name: 'snake_case', text: 'Snake' },
@@ -569,7 +647,12 @@ describe('processTemplate - Unit Tests', () => {
 				{ type: 'text' as const, parameter_name: 'UPPER_CASE', text: 'Upper' },
 			]
 
-			const result = processTemplate('param_formats', 'en', parameters)
+			const result = processTemplate(
+				mockTemplateStore,
+				'param_formats',
+				'en',
+				parameters
+			)
 
 			expect(result.error).toBeUndefined()
 			expect(result.processedTemplate?.components[0]?.text).toBe(
@@ -590,7 +673,7 @@ describe('processTemplate - Unit Tests', () => {
 				],
 			}
 
-			mockTemplateStore.getTemplate.mockReturnValue(mockTemplate)
+			mockGetTemplate.mockReturnValue(mockTemplate)
 
 			const parameters = [
 				{ type: 'text' as const, parameter_name: '0', text: '#123' },
@@ -598,7 +681,12 @@ describe('processTemplate - Unit Tests', () => {
 				{ type: 'text' as const, parameter_name: '2', text: '$25.99' },
 			]
 
-			const result = processTemplate('numeric_names', 'en', parameters)
+			const result = processTemplate(
+				mockTemplateStore,
+				'numeric_names',
+				'en',
+				parameters
+			)
 
 			expect(result.error).toBeUndefined()
 			expect(result.processedTemplate?.components[0]?.text).toBe(
@@ -619,14 +707,19 @@ describe('processTemplate - Unit Tests', () => {
 				],
 			}
 
-			mockTemplateStore.getTemplate.mockReturnValue(mockTemplate)
+			mockGetTemplate.mockReturnValue(mockTemplate)
 
 			const parameters = [
 				{ type: 'text' as const, parameter_name: '用户名', text: '张三' },
 				{ type: 'text' as const, parameter_name: '价格', text: '¥100' },
 			]
 
-			const result = processTemplate('unicode_params', 'en', parameters)
+			const result = processTemplate(
+				mockTemplateStore,
+				'unicode_params',
+				'en',
+				parameters
+			)
 
 			expect(result.error).toBeUndefined()
 			expect(result.processedTemplate?.components[0]?.text).toBe(

@@ -1,0 +1,8 @@
+{
+  "templates": {
+    "cmd": "bun run example-resolver.ts"
+  },
+  "webhookUrls": [
+    "http://localhost:3000/webhook"
+  ]
+}
