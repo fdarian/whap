@@ -7,7 +7,11 @@ import { logger } from 'hono/logger'
 import { getWebhookConfig } from './config.ts'
 import { conversationRouter } from './routes/conversation.ts'
 import { messagesRouter } from './routes/messages.ts'
-import { statusRouter } from './routes/status.ts'
+import {
+	startStatsInterval,
+	statusRouter,
+	stopStatsInterval,
+} from './routes/status.ts'
 import { templatesRouter } from './routes/templates.ts'
 import { webhooksRouter } from './routes/webhooks.ts'
 import { templateStore } from './store/template-store.ts'
@@ -174,6 +178,9 @@ export async function startServer(port = 3010) {
 	})
 
 	injectWebSocket(server)
+
+	// Start the stats broadcasting interval
+	startStatsInterval()
 
 	console.log(`🚀 Server is running on port ${port}`)
 	console.log(`Websocket server is running on ws://localhost:${port}/ws`)
