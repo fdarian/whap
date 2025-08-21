@@ -1,4 +1,5 @@
 import { command, number } from '@drizzle-team/brocli'
+import { stopStatsInterval } from '../server/routes/status.ts'
 import { startServer } from '../server/server.ts'
 
 export const serverCommand = command({
@@ -16,6 +17,10 @@ export const serverCommand = command({
 			// Handle graceful shutdown
 			const gracefulShutdown = (exitCode = 0) => {
 				console.log('\n⚡ Shutting down server gracefully...')
+
+				// Stop the stats interval to prevent keeping the process alive
+				stopStatsInterval()
+
 				server.close(() => {
 					console.log('✅ Server closed successfully')
 					process.exit(exitCode)

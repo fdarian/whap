@@ -1,0 +1,102 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install dependencies
+        run: bun install
+
+      - name: Build macOS binary
+        run: bun build src/index.ts --compile --outfile whap --target=bun-darwin-x64
+
+      - name: Build Linux binary
+        run: bun build src/index.ts --compile --outfile whap-linux --target=bun-linux-x64
+
+      - name: Create macOS tarball
+        run: tar -czf whap-darwin-x64.tar.gz whap
+
+      - name: Create Linux tarball
+        run: tar -czf whap-linux-x64.tar.gz whap-linux
+
+      - name: Create Release and Upload Assets
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: Release ${{ github.ref_name }}
+          generate_release_notes: true
+          files: |
+            whap-darwin-x64.tar.gz
+            whap-linux-x64.tar.gz
+
+      - name: Calculate SHA256 checksum
+        id: checksum
+        run: |
+          SHA256=$(sha256sum whap-darwin-x64.tar.gz | cut -d' ' -f1)
+          echo "sha256=$SHA256" >> $GITHUB_OUTPUT
+
+      - name: Extract version from tag
+        id: version
+        run: |
+          VERSION=${GITHUB_REF_NAME#v}
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+
+      - name: Checkout tap repository
+        uses: actions/checkout@v4
+        with:
+          repository: fdarian/homebrew-tap
+          path: homebrew-tap
+          token: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+
+      - name: Update Homebrew formula in tap
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          SHA256="${{ steps.checksum.outputs.sha256 }}"
+          
+          # Create Formula directory if it doesn't exist
+          mkdir -p homebrew-tap/Formula
+          
+          # Create or update the formula
+          cat > homebrew-tap/Formula/whap.rb << EOF
+          class Whap < Formula
+            desc "CLI and mock server for testing WhatsApp integration"
+            homepage "https://github.com/fdarian/whap"
+            version "$VERSION"
+            url "https://github.com/fdarian/whap/releases/download/v$VERSION/whap-darwin-x64.tar.gz"
+            sha256 "$SHA256"
+            license "MIT"
+          
+            def install
+              bin.install "whap"
+            end
+          
+            test do
+              system "#{bin}/whap", "--version"
+            end
+          end
+          EOF
+
+      - name: Commit and push formula update to tap
+        run: |
+          cd homebrew-tap
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          git add Formula/whap.rb
+          git commit -m "chore: update whap formula to ${{ steps.version.outputs.version }}" || echo "No changes to commit"
+          git push
