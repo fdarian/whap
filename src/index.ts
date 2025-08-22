@@ -1,4 +1,5 @@
 import { command, run } from '@drizzle-team/brocli'
+import packageJson from '../package.json'
 import 'dotenv/config'
 
 // Import commands
@@ -21,6 +22,6 @@ import { tuiCommand } from './commands/tui.ts'
 	await run([serverCommand, tuiCommand], {
 		name: 'whap',
 		description: 'WhatsApp Mock Server Development Tool',
-		version: '1.0.0',
+		version: packageJson.version,
 	})
 })()
