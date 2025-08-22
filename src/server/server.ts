@@ -7,13 +7,10 @@ import { logger } from 'hono/logger'
 import { getWebhookConfig } from './config.ts'
 import { getTemplatesConfig } from './configuration.ts'
 import { conversationRouter } from './routes/conversation.ts'
-import { createMessagesRouter, messagesRouter } from './routes/messages.ts'
-import {
-	startStatsInterval,
-	statusRouter,
-	stopStatsInterval,
-} from './routes/status.ts'
-import { createTemplatesRouter, templatesRouter } from './routes/templates.ts'
+import { createMessagesRouter } from './routes/messages.ts'
+import { phoneRouter } from './routes/phone.ts'
+import { startStatsInterval, statusRouter } from './routes/status.ts'
+import { createTemplatesRouter } from './routes/templates.ts'
 import { webhooksRouter } from './routes/webhooks.ts'
 import { TemplateStore } from './store/template-store.ts'
 import { TemplateResolver } from './template-resolver.ts'
@@ -105,9 +102,11 @@ function createApp(templateStore: TemplateStore) {
 
 	app.route('/v22.0', messagesRouter)
 	app.route('/v22.0', templatesRouter)
+	app.route('/v22.0', phoneRouter)
 	// Assuming 22 and 23 are the same
 	app.route('/v23.0', messagesRouter)
 	app.route('/v23.0', templatesRouter)
+	app.route('/v23.0', phoneRouter)
 	// The /mock path is for internal simulation tools
 	app.route('/mock', webhooksRouter)
 	app.route('/status', statusRouter)

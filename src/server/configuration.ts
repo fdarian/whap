@@ -6,6 +6,11 @@ export interface WhapConfiguration {
 	templates?: {
 		cmd: string
 	}
+	phoneNumbers?: {
+		[phoneNumberId: string]: {
+			displayPhoneNumber: string
+		}
+	}
 }
 
 export interface ParsedWebhookMapping {
@@ -161,4 +166,15 @@ export function getWebhookMappingsFromConfig(): {
 export function getTemplatesConfig(): { cmd: string } | null {
 	const config = loadConfigFile()
 	return config?.templates ?? null
+}
+
+/**
+ * Get phone numbers configuration from configuration file
+ * @returns Phone numbers configuration or null if not present
+ */
+export function getPhoneNumbersConfig():
+	| WhapConfiguration['phoneNumbers']
+	| null {
+	const config = loadConfigFile()
+	return config?.phoneNumbers ?? null
 }

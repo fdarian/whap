@@ -14,6 +14,21 @@
 			},
 			"uniqueItems": true,
 			"minItems": 1
+		},
+		"phoneNumbers": {
+			"type": "object",
+			"description": "Map of phone number IDs to their display information",
+			"additionalProperties": {
+				"type": "object",
+				"properties": {
+					"displayPhoneNumber": {
+						"type": "string",
+						"description": "The display phone number for this phone number ID"
+					}
+				},
+				"required": ["displayPhoneNumber"],
+				"additionalProperties": false
+			}
 		}
 	},
 	"additionalProperties": false
