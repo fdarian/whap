@@ -7,9 +7,9 @@
 #   IMAGE_TAG=myver make ...    Override the image tag
 #
 # Targets are grouped:
-#   Build     — build (alias: build_final), build_dev
+#   Build     — build, build_debug
 #   Run       — server, tui, whap_help
-#   Dev tasks — test, typecheck, lint, format
+#   Dev tasks — test, typecheck, lint, format (use debug image)
 #   Custom    — run (pass CMD=... for arbitrary commands)
 #   Manage    — rm_containers, rmi, clean
 #   Inspect   — images, ps
@@ -42,24 +42,24 @@ IMAGE_NAME  ?= whap
 # Defaults to the version in package.json (extracted with bun -e).
 IMAGE_TAG   ?= $(shell bun -e "console.log(require('./package.json').version)")
 
-# Tag applied to the dev image built by build_dev.
-DEV_TAG     ?= dev
+# Tag applied to the debug image built by build_debug.
+DEBUG_TAG   ?= debug
 
 # Fully-qualified image references.
 # If IMAGE_REPO is set, images are prefixed with "repo/"; otherwise bare name.
 _REPO_PREFIX = $(if $(IMAGE_REPO),$(IMAGE_REPO)/,)
 IMAGE        = $(_REPO_PREFIX)$(IMAGE_NAME):$(IMAGE_TAG)
-# Dev image reference: same name, separate tag so production and dev images
-# can coexist locally without the dev image clobbering the release tag.
-DEV_IMAGE    = $(_REPO_PREFIX)$(IMAGE_NAME):$(DEV_TAG)
+# Debug image reference: same name, separate tag so production and debug images
+# can coexist locally without the debug image clobbering the release tag.
+DEBUG_IMAGE  = $(_REPO_PREFIX)$(IMAGE_NAME):$(DEBUG_TAG)
 
 # Host port mapped to the container's port 3010.
 SERVER_PORT ?= 3010
 
-# Path to the local src/ directory to mount into the dev image for live editing.
+# Path to the local src/ directory to mount into the debug image for live editing.
 # When set, the directory is overlaid onto /app/src inside the container so that
 # dev tasks (test, typecheck, lint, format) operate on the current file tree
-# without requiring a rebuild of the dev image.
+# without requiring a rebuild of the debug image.
 #
 # The mount is read-only for all dev tasks except format, where it must be
 # read-write so Biome can write changes back to the host filesystem.
@@ -83,7 +83,7 @@ DOCKERFILE = Dockerfile
 # Phony declarations — targets that never produce files.
 # -----------------------------------------------------------------------------
 .PHONY: help \
-        build build_dev build_final \
+        build build_debug \
         server tui whap_help run \
         test typecheck lint format \
         rm_containers rmi clean \
@@ -96,9 +96,8 @@ help:
 	@printf '\nWhap Docker Makefile\n'
 	@printf '====================\n\n'
 	@printf 'Build targets:\n'
-	@printf '  build             Alias for build_final — build the production image ($(IMAGE))\n'
-	@printf '  build_final       Build the final stage: minimal runtime image ($(IMAGE))\n'
-	@printf '  build_dev         Build the dev/build stage: Bun + source + deps ($(DEV_IMAGE))\n'
+	@printf '  build             Build the production image ($(IMAGE))\n'
+	@printf '  build_debug       Build the debug stage: Bun + source + debugger support ($(DEBUG_IMAGE))\n'
 	@printf '\nRun targets:\n'
 	@printf '  server            Start the mock server on port $(SERVER_PORT)\n'
 	@printf '  tui               Start the interactive TUI (allocates TTY)\n'
@@ -119,16 +118,16 @@ help:
 	@printf '\nVariables (override on the command line):\n'
 	@printf '  IMAGE_NAME=whap   Image name (default: whap)\n'
 	@printf '  IMAGE_TAG=<ver>   Production image tag (default: from package.json)\n'
-	@printf '  DEV_TAG=dev       Dev image tag (default: dev) — used by build_dev\n'
+	@printf '  DEBUG_TAG=debug   Debug image tag (default: debug) — used by build_debug\n'
 	@printf '  IMAGE_REPO=       Optional registry prefix (e.g. ghcr.io/myorg)\n'
 	@printf '  SERVER_PORT=3010  Host port mapped to container port 3010\n'
-	@printf '  SRC_DIR=          Local src/ directory to mount into the dev image\n'
+	@printf '  SRC_DIR=          Local src/ directory to mount into the debug image\n'
 	@printf '                    Enables live editing without rebuilding the image\n'
 	@printf '                    Mounted :ro for test/typecheck/lint, :rw for format\n'
 	@printf '  CMD=--help        Subcommand for run target\n'
 	@printf '\nExamples:\n'
-	@printf '  make build                       # build production image (final stage)\n'
-	@printf '  make build_dev                   # build dev image (build stage)\n'
+	@printf '  make build                       # build production image\n'
+	@printf '  make build_debug                 # build debug image (debug stage)\n'
 	@printf '  make server\n'
 	@printf '  make run CMD="server --port 8080"\n'
 	@printf '  make test\n'
@@ -142,31 +141,27 @@ help:
 # Build targets
 # =============================================================================
 
-## build_final: Build the production image using the 'final' stage.
+## build: Build the production image using the 'final' stage.
 # The 'final' stage is the minimal runtime image: debian:bookworm-slim with
 # only the compiled self-contained binary (dist/whap).  No Bun, no source,
 # no node_modules.  This is the image used by server/tui/run targets.
-build_final:
+build:
 	docker build \
 		--file $(DOCKERFILE) \
 		--target final \
 		--tag $(IMAGE) \
 		.
 
-## build: Convenience alias for build_final.
-# Running 'make build' produces the production image, which is the most
-# common operation.  Explicit 'make build_final' is equally valid.
-build: build_final
-
-## build_dev: Build the dev image using the 'build' stage.
-# The 'build' stage includes Bun, node_modules, and the full source tree,
-# making it suitable for running tests, type checks, and linters.
-# Tagged as $(DEV_IMAGE) so it does not overwrite the production image tag.
-build_dev:
+## build_debug: Build the debug image using the 'debug' stage.
+# The 'debug' stage includes Bun, node_modules, and the full source tree,
+# making it suitable for running tests, type checks, linters, and debugging.
+# Provides Bun Inspector support on port 9229 for interactive debugging.
+# Tagged as $(DEBUG_IMAGE) so it does not overwrite the production image tag.
+build_debug:
 	docker build \
 		--file $(DOCKERFILE) \
-		--target build \
-		--tag $(DEV_IMAGE) \
+		--target debug \
+		--tag $(DEBUG_IMAGE) \
 		.
 
 # =============================================================================
@@ -175,7 +170,7 @@ build_dev:
 
 ## server: Start the mock server, mapping SERVER_PORT on the host.
 # --rm removes the container after it stops (no leftover containers).
-server: build_final
+server: build
 	docker run \
 		--rm \
 		--publish $(SERVER_PORT):3010 \
@@ -185,7 +180,7 @@ server: build_final
 ## tui: Start the interactive TUI.
 # --interactive --tty are both required: Ink (the TUI framework) drives the
 # terminal via raw-mode stdin; without a TTY the UI cannot render.
-tui: build_final
+tui: build
 	docker run \
 		--rm \
 		--interactive \
@@ -194,7 +189,7 @@ tui: build_final
 		tui
 
 ## whap_help: Print the whap CLI help text and exit.
-whap_help: build_final
+whap_help: build
 	docker run \
 		--rm \
 		$(IMAGE) \
@@ -204,7 +199,7 @@ whap_help: build_final
 # Set CMD to the desired subcommand (and flags), e.g.:
 #   make run CMD="server --port 8080"
 #   make run CMD="tui"
-run: build_final
+run: build
 	docker run \
 		--rm \
 		--interactive \
@@ -213,37 +208,37 @@ run: build_final
 		$(CMD)
 
 # =============================================================================
-# Dev task targets (dev image — includes Bun, source, and devDependencies)
+# Dev task targets (debug image — includes Bun, source, devDependencies, debugger)
 # =============================================================================
 
-## test: Run the vitest test suite inside the dev image.
+## test: Run the vitest test suite inside the debug image.
 # Pass SRC_DIR=./src to run against live source without rebuilding:
 #   SRC_DIR=./src make test
-test: build_dev
+test: build_debug
 	docker run \
 		--rm \
 		$(_SRC_MOUNT_RO) \
-		$(DEV_IMAGE) \
+		$(DEBUG_IMAGE) \
 		bun run test
 
-## typecheck: Run tsc --noEmit inside the dev image.
+## typecheck: Run tsc --noEmit inside the debug image.
 # Pass SRC_DIR=./src to type-check live source without rebuilding:
 #   SRC_DIR=./src make typecheck
-typecheck: build_dev
+typecheck: build_debug
 	docker run \
 		--rm \
 		$(_SRC_MOUNT_RO) \
-		$(DEV_IMAGE) \
+		$(DEBUG_IMAGE) \
 		bun tsc --noEmit
 
-## lint: Run the Biome linter against src/ inside the dev image.
+## lint: Run the Biome linter against src/ inside the debug image.
 # Pass SRC_DIR=./src to lint live source without rebuilding:
 #   SRC_DIR=./src make lint
-lint: build_dev
+lint: build_debug
 	docker run \
 		--rm \
 		$(_SRC_MOUNT_RO) \
-		$(DEV_IMAGE) \
+		$(DEBUG_IMAGE) \
 		bunx biome check src/
 
 ## format: Run the Biome formatter with --write against src/.
@@ -251,11 +246,11 @@ lint: build_dev
 # exits.  Pass SRC_DIR=./src to write formatted files back to the host:
 #   SRC_DIR=./src make format
 # The mount is :rw (read-write) so Biome's output reaches the host filesystem.
-format: build_dev
+format: build_debug
 	docker run \
 		--rm \
 		$(_SRC_MOUNT_RW) \
-		$(DEV_IMAGE) \
+		$(DEBUG_IMAGE) \
 		bunx biome format --write src/
 
 # =============================================================================
@@ -263,20 +258,20 @@ format: build_dev
 # =============================================================================
 
 ## rm_containers: Stop and remove every container created from whap images.
-# Queries both the production image and the dev image so containers from
+# Queries both the production image and the debug image so containers from
 # either build are cleaned up.  Safe to run when no containers exist.
 rm_containers:
-	@CONTAINERS=$$(docker ps --all --quiet --filter ancestor=$(IMAGE) --filter ancestor=$(DEV_IMAGE)); \
+	@CONTAINERS=$$(docker ps --all --quiet --filter ancestor=$(IMAGE) --filter ancestor=$(DEBUG_IMAGE)); \
 	if [ -n "$$CONTAINERS" ]; then \
 		docker rm --force $$CONTAINERS; \
 	else \
 		echo "No whap containers to remove."; \
 	fi
 
-## rmi: Remove the production and dev images (if they exist).
+## rmi: Remove the production and debug images (if they exist).
 rmi:
 	@docker rmi --force $(IMAGE) 2>/dev/null || echo "Image $(IMAGE) not found, skipping."
-	@docker rmi --force $(DEV_IMAGE) 2>/dev/null || echo "Image $(DEV_IMAGE) not found, skipping."
+	@docker rmi --force $(DEBUG_IMAGE) 2>/dev/null || echo "Image $(DEBUG_IMAGE) not found, skipping."
 
 ## clean: Remove all whap containers then the whap images.
 clean: rm_containers rmi
