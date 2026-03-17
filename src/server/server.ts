@@ -111,7 +111,6 @@ function createApp(templateStore: TemplateStore) {
 	app.route('/mock', webhooksRouter)
 	app.route('/status', statusRouter)
 	app.route('/conversation', conversationRouter)
-	// The webhook endpoint for WhatsApp is the root of the webhooksRouter
 	app.route('/webhook', webhooksRouter)
 
 	// 404 handler

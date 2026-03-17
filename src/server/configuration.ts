@@ -3,6 +3,7 @@ import path from 'node:path'
 
 export interface WhapConfiguration {
 	webhookUrls?: string[]
+	webhookSecret?: string
 	templates?: {
 		cmd: string
 	}
@@ -177,4 +178,22 @@ export function getPhoneNumbersConfig():
 	| null {
 	const config = loadConfigFile()
 	return config?.phoneNumbers ?? null
+}
+
+/**
+ * Get the webhook secret used for HMAC-SHA256 signature verification.
+ *
+ * Priority order:
+ *   1. WEBHOOK_SECRET environment variable
+ *   2. webhookSecret field in whap.json
+ *
+ * Returns null when neither is set, in which case signature verification
+ * is skipped (opt-in behaviour).
+ */
+export function getWebhookSecret(): string | null {
+	if (process.env.WEBHOOK_SECRET) {
+		return process.env.WEBHOOK_SECRET
+	}
+	const config = loadConfigFile()
+	return config?.webhookSecret ?? null
 }
