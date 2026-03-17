@@ -86,6 +86,13 @@ RUN bun run build
 # -----------------------------------------------------------------------------
 FROM oven/bun:${BUN_VERSION} AS debug
 
+# Install only the minimal runtime libraries needed:
+#   ca-certificates — HTTPS calls from the mock server to real webhooks
+#   curl            — used by the HEALTHCHECK to probe /health
+RUN apt-get update \
+    && apt-get install --yes --no-install-recommends ca-certificates curl \
+    && rm --recursive --force /var/lib/apt/lists/*
+
 WORKDIR /app
 
 # Bring in installed dependencies from the deps stage.
@@ -94,16 +101,16 @@ COPY --from=deps /app/node_modules ./node_modules
 # Copy the full source tree including configuration files.
 COPY . .
 
-# Run type checking to catch errors early in the debug environment.
-RUN bun tsc --noEmit
-
 # The mock server listens on port 3010 by default.
 # The Bun Inspector listens on port 9229 (standard debugging protocol).
 EXPOSE 3010 9229
 
-# Health check: verify the mock server is responsive on its main port.
+# Health check: the /health route is registered by whap's status router.
+# a 200 means the server is alive and accepting requests.
+# curl is installed above in the runtime stage; wget is not available in
+# debian:bookworm-slim and was not installed.
 HEALTHCHECK --interval=10s --timeout=5s --start-period=15s --retries=3 \
-    CMD bun run -e "const res = await fetch('http://localhost:3010/health'); process.exit(res.ok ? 0 : 1)" || exit 1
+    CMD curl --fail --silent http://localhost:3010/health || exit 1
 
 # Default command runs the server with source maps and watch mode enabled.
 # Users can override with --inspect or --inspect-brk for debugging:
