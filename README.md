@@ -10,6 +10,7 @@ A comprehensive development environment for testing WhatsApp integrations withou
 - **Full API Compatibility**: Mimics WhatsApp Cloud API endpoints for seamless integration testing
 - **Message Sending & Receiving**: Complete message flow simulation with realistic responses
 - **Webhook Simulation**: Real-time webhook events for message delivery status, read receipts, and error handling
+- **🔐 HMAC-SHA256 Signatures**: Webhook requests include `x-hub-signature-256` header matching WhatsApp's authentication spec
 - **Template Management API**: Full CRUD operations for WhatsApp message templates
 - **Hot-Reload Templates**: Automatic template reloading when JSON files change - no server restart required
 - **Schema Validation**: Ensures templates comply with WhatsApp Business API requirements
@@ -23,6 +24,13 @@ A comprehensive development environment for testing WhatsApp integrations withou
 - **Conversation History**: View complete message and template history with timestamps
 - **Development Workflow**: Seamless integration with existing development processes
 - **Hot-Reload Integration**: Instantly test template changes without restarting CLI
+
+### 🐳 Docker & Infrastructure
+- **Multi-stage Docker Build**: Optimized production and debug images
+- **Self-contained Binary**: Compiled Bun executable with no runtime dependencies
+- **Health Checks**: Built-in `/health` endpoint for container orchestration
+- **Makefile Automation**: 40+ targets for building, testing, and deploying
+- **Debug Support**: Bun Inspector on port 9229 for interactive debugging
 
 ## Quick Start
 
@@ -96,10 +104,149 @@ pnpm run start:server -- --webhook-url 1234567890:http://localhost:4000/webhook
 
 Configuration sources are applied in this order (highest to lowest priority):
 1. **CLI arguments** (`--webhook-url`)
-2. **Environment variables** (`WEBHOOK_URL`)  
+2. **Environment variables** (`WEBHOOK_URL`)
 3. **Configuration file** (`whap.json`)
 
 Webhook URLs without phone numbers are used as fallback URLs when no phone-specific mapping exists. If multiple fallback URLs are provided, the first entry in `whap.json` is used when `WEBHOOK_URL` is not set.
+
+### Webhook Security (HMAC Signatures)
+
+Configure webhook signature authentication to match WhatsApp's security requirements. Webhooks will include the `X-Hub-Signature-256` header for signature verification.
+
+#### 1. Configuration File
+
+Add to `whap.json`:
+
+```json
+{
+  "webhookSecret": "your-app-secret"
+}
+```
+
+#### 2. Environment Variable
+
+```bash
+export WEBHOOK_SECRET="your-app-secret"
+pnpm run start:server
+```
+
+#### 3. CLI Arguments
+
+```bash
+pnpm run start:server -- --webhook-secret "your-app-secret"
+```
+
+**Signature Verification:**
+
+All outgoing webhook requests include the `x-hub-signature-256` header when a secret is configured. Verify the signature using:
+
+```javascript
+const crypto = require('crypto');
+
+function verifyWebhookSignature(signature, secret, body) {
+  const expectedSignature = 'sha256=' +
+    crypto.createHmac('sha256', secret).update(body).digest('hex');
+  return signature === expectedSignature;
+}
+```
+
+**Example:**
+```
+Header: x-hub-signature-256: sha256=b6978b21c4467654c466607663db9b43fae44b71083568df403e0a077089208e
+Secret: your-app-secret
+Body: {"object":"whatsapp_business_account","entry":[...]}
+```
+
+## Docker Deployment
+
+Whap includes production-ready Docker support with multi-stage builds for minimal image sizes.
+
+### Quick Start
+
+```bash
+# Build production image
+make build
+
+# Run the server
+make server
+
+# Run the TUI interface (interactive mode)
+make tui
+
+# View all available commands
+make help
+```
+
+### Docker Images
+
+- **Production image** (`whap:latest`): Minimal runtime image (~150MB)
+  - Self-contained Bun binary
+  - No source code or node_modules
+  - Health checks enabled
+
+- **Debug image** (`whap:debug`): Full development image (~800MB)
+  - Bun Inspector support (port 9229)
+  - Full source code
+  - Development dependencies
+
+### Makefile Targets
+
+**Build:**
+- `make build` - Build production image
+- `make build_debug` - Build debug image with source and Inspector
+
+**Run:**
+- `make server` - Start mock server (port 3010)
+- `make tui` - Start interactive CLI (with TTY)
+- `make run CMD="..."` - Run arbitrary whap command
+
+**Development:**
+- `make test` - Run test suite
+- `make typecheck` - TypeScript type checking
+- `make lint` - Run Biome linter
+- `make format` - Run Biome formatter
+
+**Management:**
+- `make clean` - Remove containers and images
+- `make rm_containers` - Stop and remove containers
+- `make rmi` - Remove images
+
+**Inspection:**
+- `make images` - List whap images
+- `make ps` - List running containers
+
+### Live Source Mounting
+
+For development, mount your source directory to reflect changes without rebuilding:
+
+```bash
+# Run tests against live source
+SRC_DIR=./src make test
+
+# Type-check live source
+SRC_DIR=./src make typecheck
+
+# Lint live source
+SRC_DIR=./src make lint
+
+# Format and write back to host
+SRC_DIR=./src make format
+```
+
+### Custom Configuration
+
+```bash
+# Change image tag
+IMAGE_TAG=1.0.0 make build
+
+# Change server port
+SERVER_PORT=8080 make server
+
+# Run with webhook secret
+docker run -p 3010:3010 \
+  -e WEBHOOK_SECRET="your-secret" \
+  whap:latest server
+```
 
 ## Template System
 
@@ -132,7 +279,7 @@ Webhook URLs without phone numbers are used as fallback URLs when no phone-speci
 
 ```bash
 # 1. Create/modify template files in templates/
-# 2. Templates hot-reload automatically  
+# 2. Templates hot-reload automatically
 # 3. Test immediately in CLI interface
 # 4. Send via API for integration testing
 ```
@@ -144,7 +291,7 @@ curl -X POST http://localhost:3010/v22.0/123456789/messages \
   -H "Content-Type: application/json" \
   -d '{
     "messaging_product": "whatsapp",
-    "to": "1234567890", 
+    "to": "1234567890",
     "type": "template",
     "template": {
       "name": "welcome_message",
@@ -179,6 +326,24 @@ pnpm run test:watch       # Run tests in watch mode
 
 # Building
 pnpm run build            # Build for production
+```
+
+### Docker & Make Commands
+
+```bash
+# Build
+make build                # Build production Docker image
+make build_debug          # Build debug image with Inspector
+
+# Run
+make server               # Run mock server in container
+make tui                  # Run CLI interface in container
+make test                 # Run tests in container
+
+# Development with live source
+SRC_DIR=./src make test           # Run tests against live source
+SRC_DIR=./src make typecheck      # Type-check live source
+SRC_DIR=./src make format         # Format code and write back
 ```
 
 ### Project Structure
