@@ -151,7 +151,7 @@ function verifyWebhookSignature(signature, secret, body) {
 ```
 
 **Example:**
-```
+```text
 Header: x-hub-signature-256: sha256=b6978b21c4467654c466607663db9b43fae44b71083568df403e0a077089208e
 Secret: your-app-secret
 Body: {"object":"whatsapp_business_account","entry":[...]}
@@ -320,7 +320,7 @@ pnpm run start:server     # Start mock server (port 3010)
 pnpm run start:cli        # Start interactive CLI
 pnpm run dev              # Start both in development mode
 
-# Testing  
+# Testing
 pnpm run test             # Run test suite
 pnpm run test:watch       # Run tests in watch mode
 
