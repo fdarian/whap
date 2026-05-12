@@ -320,7 +320,7 @@ async function sendWebhook(
 	payload: WebhookPayload
 ): Promise<void> {
 	try {
-		const body = JSON.stringify(payload)
+		const body = serializeJsonWithEscapedUnicode(payload)
 
 		const headers: Record<string, string> = {
 			'Content-Type': 'application/json',
