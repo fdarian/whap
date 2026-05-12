@@ -56,6 +56,9 @@ DEBUG_IMAGE  = $(_REPO_PREFIX)$(IMAGE_NAME):$(DEBUG_TAG)
 # Host port mapped to the container's port 3010.
 SERVER_PORT ?= 3010
 
+# Name of the running whap container to attach to with the tui target.
+CONTAINER_NAME ?= whap
+
 # Path to the local src/ directory to mount into the debug image for live editing.
 # When set, the directory is overlaid onto /app/src inside the container so that
 # dev tasks (test, typecheck, lint, format) operate on the current file tree
@@ -100,7 +103,7 @@ help:
 	@printf '  build_debug       Build the debug stage: Bun + source + debugger support ($(DEBUG_IMAGE))\n'
 	@printf '\nRun targets:\n'
 	@printf '  server            Start the mock server on port $(SERVER_PORT)\n'
-	@printf '  tui               Start the interactive TUI (allocates TTY)\n'
+	@printf '  tui               Attach the interactive TUI to the running container\n'
 	@printf '  whap_help         Print whap CLI help text\n'
 	@printf '  run               Run an arbitrary whap command (CMD=<subcommand>)\n'
 	@printf '\nDev task targets (use dev image):\n'
@@ -121,6 +124,7 @@ help:
 	@printf '  DEBUG_TAG=debug   Debug image tag (default: debug) — used by build_debug\n'
 	@printf '  IMAGE_REPO=       Optional registry prefix (e.g. ghcr.io/myorg)\n'
 	@printf '  SERVER_PORT=3010  Host port mapped to container port 3010\n'
+	@printf '  CONTAINER_NAME=whap  Running container to attach to with tui target\n'
 	@printf '  SRC_DIR=          Local src/ directory to mount into the debug image\n'
 	@printf '                    Enables live editing without rebuilding the image\n'
 	@printf '                    Mounted :ro for test/typecheck/lint, :rw for format\n'
@@ -177,16 +181,17 @@ server: build
 		$(IMAGE) \
 		server
 
-## tui: Start the interactive TUI.
-# --interactive --tty are both required: Ink (the TUI framework) drives the
+## tui: Attach the interactive TUI to the running whap container.
+# Execs into the container named CONTAINER_NAME (default: whap) so the TUI
+# shares the server's state (messages, webhooks, templates) without starting
+# a second process.  --interactive --tty are both required: Ink drives the
 # terminal via raw-mode stdin; without a TTY the UI cannot render.
-tui: build
-	docker run \
-		--rm \
+tui:
+	docker exec \
 		--interactive \
 		--tty \
-		$(IMAGE) \
-		tui
+		$(CONTAINER_NAME) \
+		bun src/index.ts tui
 
 ## whap_help: Print the whap CLI help text and exit.
 whap_help: build
