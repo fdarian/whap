@@ -267,8 +267,8 @@ format: build_debug
 # Queries both the production image and the debug image so containers from
 # either build are cleaned up.  Safe to run when no containers exist.
 rm_containers:
-	CONTAINERS=$$(docker ps --all --quiet --filter ancestor=$(IMAGE)); \
-	CONTAINERS="$$CONTAINERS $$(docker ps --all --quiet --filter ancestor=$(DEBUG_IMAGE))"; \
+	CONTAINERS="$$(docker ps --all --quiet --filter ancestor=$(IMAGE)) $$(docker ps --all --quiet --filter ancestor=$(DEBUG_IMAGE))"; \
+	CONTAINERS="$$(printf '%s\n' "$$CONTAINERS" | xargs)"; \
 	if [ -n "$$CONTAINERS" ]; then \
 		docker rm --force $$CONTAINERS; \
 	else \
