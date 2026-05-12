@@ -191,7 +191,7 @@ tui:
 		--interactive \
 		--tty \
 		$(CONTAINER_NAME) \
-		bun src/index.ts tui
+		/app/whap tui
 
 ## whap_help: Print the whap CLI help text and exit.
 whap_help: build
@@ -207,6 +207,7 @@ whap_help: build
 run: build
 	docker run \
 		--rm \
+		--name $(CONTAINER_NAME) \
 		--interactive \
 		--tty \
 		$(IMAGE) \
