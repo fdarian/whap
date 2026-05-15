@@ -26,7 +26,6 @@ for (const platform of platforms) {
 			'--compile',
 			'--sourcemap',
 			'--minify',
-			'--bytecode',
 			`--target=${target}`,
 			'src/index.ts',
 			`--outfile=${outfile}`,
