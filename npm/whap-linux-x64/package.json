@@ -1,0 +1,14 @@
+{
+	"name": "whap-linux-x64",
+	"version": "0.2.1",
+	"main": "./bin",
+	"os": [
+		"linux"
+	],
+	"cpu": [
+		"x64"
+	],
+	"files": [
+		"bin"
+	]
+}
