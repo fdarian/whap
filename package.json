@@ -4,15 +4,24 @@
 	"description": "CLI and mock server for testing WhatsApp integration",
 	"type": "module",
 	"bin": {
-		"whap": "./dist/whap"
+		"whap": "./bin.mjs"
 	},
+	"files": [
+		"bin.mjs"
+	],
 	"scripts": {
 		"whap": "bun run src/index.ts",
-		"build": "bun build src/index.ts --compile --outfile dist/whap ",
+		"build": "bun scripts/build-npm.ts",
 		"dev:server": "bun run --watch src/server/server.ts",
 		"test": "vitest run",
 		"test:watch": "vitest --watch",
 		"test:ui": "vitest --ui"
+	},
+	"optionalDependencies": {
+		"whap-darwin-arm64": "0.2.1",
+		"whap-darwin-x64": "0.2.1",
+		"whap-linux-x64": "0.2.1",
+		"whap-linux-arm64": "0.2.1"
 	},
 	"dependencies": {
 		"@effect/platform-bun": "4.0.0-beta.59",
