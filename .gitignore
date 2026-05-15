@@ -82,6 +82,7 @@ cover
 coverage
 coverv
 dist
+npm/*/bin
 esbuilddir
 examples/lotta-modules/bun-nofscache
 examples/lotta-modules/bun-old
