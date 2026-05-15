@@ -1,6 +1,11 @@
 import { Hono } from 'hono'
 import { validator } from 'hono/validator'
 import { getAllWebhookMappings, getWebhookUrl } from '../config.ts'
+import { getWebhookSecret } from '../configuration.ts'
+import {
+	computeHmacSignatureHeader,
+	SIGNATURE_HEADER,
+} from '../middleware/hmac-signature.ts'
 import { mockStore } from '../store/memory-store.ts'
 import type {
 	SimulateMessageParams,
@@ -315,13 +320,27 @@ async function sendWebhook(
 	payload: WebhookPayload
 ): Promise<void> {
 	try {
+		const body = serializeJsonWithEscapedUnicode(payload)
+
+		const headers: Record<string, string> = {
+			'Content-Type': 'application/json',
+			'User-Agent': 'WhatsApp-Mock-Server/1.0',
+		}
+
+		// Inject HMAC-SHA256 signature when a secret is configured, mirroring
+		// what the real WhatsApp Cloud API does on outgoing webhook calls.
+		const webhookSecret = getWebhookSecret()
+		if (webhookSecret) {
+			headers[SIGNATURE_HEADER] = computeHmacSignatureHeader(
+				webhookSecret,
+				body
+			)
+		}
+
 		const response = await fetch(url, {
 			method: 'POST',
-			headers: {
-				'Content-Type': 'application/json',
-				'User-Agent': 'WhatsApp-Mock-Server/1.0',
-			},
-			body: JSON.stringify(payload),
+			headers,
+			body,
 		})
 
 		if (!response.ok) {

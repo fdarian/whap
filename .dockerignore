@@ -1,0 +1,26 @@
+# Exclude generated artefacts — the build stage produces these inside the
+# container from source; shipping them in the context wastes bandwidth and
+# risks stale binaries shadowing a fresh build.
+dist/
+node_modules/
+
+# Test output and coverage
+coverage/
+.nyc_output/
+
+# Editor and OS metadata
+.git/
+.gitignore
+.DS_Store
+*.swp
+*.swo
+
+# Development config that should never land in a container image
+.env
+.env.*
+!.env.example
+
+# Documentation and tooling that are not needed at build time
+*.md
+.cursor/
+.vscode/

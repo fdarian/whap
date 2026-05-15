@@ -1,6 +1,12 @@
 import { Hono } from 'hono'
 import { validator } from 'hono/validator'
 import { getWebhookUrl } from '../config.ts'
+import { getWebhookSecret } from '../configuration.ts'
+import {
+	computeHmacSignatureHeader,
+	serializeJsonWithEscapedUnicode,
+	SIGNATURE_HEADER,
+} from '../middleware/hmac-signature.ts'
 import type { StoredMessage } from '../store/memory-store.ts'
 import { mockStore } from '../store/memory-store.ts'
 import type { Template, TemplateStore } from '../store/template-store.ts'
@@ -93,13 +99,26 @@ export function createMessagesRouter(templateStore: TemplateStore) {
 		payload: WebhookPayload
 	): Promise<void> {
 		try {
+			const body = serializeJsonWithEscapedUnicode(payload)
+			const headers: Record<string, string> = {
+				'Content-Type': 'application/json',
+				'User-Agent': 'WhatsApp-Mock-Server/1.0',
+			}
+
+			// Inject HMAC-SHA256 signature when a secret is configured, mirroring
+			// what the real WhatsApp Cloud API does on outgoing webhook calls.
+			const webhookSecret = getWebhookSecret()
+			if (webhookSecret) {
+				headers[SIGNATURE_HEADER] = computeHmacSignatureHeader(
+					webhookSecret,
+					body
+				)
+			}
+
 			const response = await fetch(url, {
 				method: 'POST',
-				headers: {
-					'Content-Type': 'application/json',
-					'User-Agent': 'WhatsApp-Mock-Server/1.0',
-				},
-				body: JSON.stringify(payload),
+				headers,
+				body,
 			})
 
 			if (!response.ok) {
