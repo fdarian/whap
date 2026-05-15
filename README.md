@@ -42,17 +42,17 @@ git clone https://github.com/fdarian/whap.git
 cd whap
 
 # Install dependencies
-pnpm install
+bun install
 ```
 
 ### Basic Usage
 
 ```bash
 # Terminal 1: Start the mock server
-pnpm run start:server
+bun whap server
 
 # Terminal 2: Start the CLI interface
-pnpm run start:cli
+bun whap tui
 ```
 
 The mock server runs on port **3010** and provides WhatsApp Cloud API compatible endpoints.
@@ -87,17 +87,17 @@ Create a `whap.json` file in your project root:
 ```bash
 # Fallback URL
 export WEBHOOK_URL=http://localhost:4000/webhook
-pnpm run start:server
+bun whap server
 
 # Or phone-specific mapping
 export WEBHOOK_URL=1234567890:http://localhost:4000/webhook
-pnpm run start:server
+bun whap server
 ```
 
 #### 3. CLI Arguments
 
 ```bash
-pnpm run start:server -- --webhook-url 1234567890:http://localhost:4000/webhook
+bun whap server --port 8080
 ```
 
 ### Configuration Priority
@@ -127,13 +127,13 @@ Add to `whap.json`:
 
 ```bash
 export WEBHOOK_SECRET="your-app-secret"
-pnpm run start:server
+bun whap server
 ```
 
 #### 3. CLI Arguments
 
 ```bash
-pnpm run start:server -- --webhook-secret "your-app-secret"
+bun whap server --port 8080
 ```
 
 **Signature Verification:**
@@ -316,16 +316,16 @@ curl -X POST http://localhost:3010/v22.0/123456789/messages \
 
 ```bash
 # Development
-pnpm run start:server     # Start mock server (port 3010)
-pnpm run start:cli        # Start interactive CLI
-pnpm run dev              # Start both in development mode
+bun whap server           # Start mock server (port 3010)
+bun whap tui              # Start interactive CLI
+bun run dev:server        # Start server in watch mode
 
 # Testing
-pnpm run test             # Run test suite
-pnpm run test:watch       # Run tests in watch mode
+bun test                  # Run test suite
+bun run test:watch        # Run tests in watch mode
 
 # Building
-pnpm run build            # Build for production
+bun run build             # Build for production
 ```
 
 ### Docker & Make Commands
