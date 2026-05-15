@@ -1,27 +1,16 @@
-import { command, run } from '@drizzle-team/brocli'
-import packageJson from '../package.json'
 import 'dotenv/config'
-
-// Import commands
+import { BunRuntime, BunServices } from '@effect/platform-bun'
+import { Effect } from 'effect'
+import { Command } from 'effect/unstable/cli'
+import packageJson from '../package.json'
 import { serverCommand } from './commands/server.ts'
 import { tuiCommand } from './commands/tui.ts'
 
-;(async () => {
-	// Signal handlers for graceful shutdown
-	process.on('SIGINT', () => {
-		console.log('\nReceived SIGINT. Gracefully shutting down...')
-		process.exit(0)
-	})
+const whapCommand = Command.make('whap').pipe(
+	Command.withDescription('WhatsApp Mock Server Development Tool'),
+	Command.withSubcommands([serverCommand, tuiCommand])
+)
 
-	process.on('SIGTERM', () => {
-		console.log('\nReceived SIGTERM. Gracefully shutting down...')
-		process.exit(0)
-	})
-
-	// Run the CLI
-	await run([serverCommand, tuiCommand], {
-		name: 'whap',
-		description: 'WhatsApp Mock Server Development Tool',
-		version: packageJson.version,
-	})
-})()
+Command.run(whapCommand, {
+	version: packageJson.version,
+}).pipe(Effect.provide(BunServices.layer), BunRuntime.runMain)
