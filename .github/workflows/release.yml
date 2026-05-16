@@ -51,6 +51,7 @@ jobs:
         if: steps.changesets.outputs.published == 'true'
         run: |
           VERSION=$(bun -e "console.log(require('./package.json').version)")
+          LICENSE_NAME=$(bun -e "console.log(require('./package.json').license)")
           SHA_DARWIN_ARM64=$(shasum -a 256 whap-darwin-arm64.tar.gz | cut -d ' ' -f 1)
           SHA_DARWIN_X64=$(shasum -a 256 whap-darwin-x64.tar.gz | cut -d ' ' -f 1)
           SHA_LINUX_X64=$(shasum -a 256 whap-linux-x64.tar.gz | cut -d ' ' -f 1)
@@ -64,7 +65,7 @@ jobs:
             desc "CLI and mock server for testing WhatsApp integration"
             homepage "https://github.com/fdarian/whap"
             version "${VERSION}"
-            license "MIT"
+            license "${LICENSE_NAME}"
 
             on_macos do
               on_arm do

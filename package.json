@@ -2,6 +2,7 @@
 	"name": "whap",
 	"version": "0.2.1",
 	"description": "CLI and mock server for testing WhatsApp integration",
+	"license": "MIT",
 	"type": "module",
 	"bin": {
 		"whap": "./bin.mjs"
