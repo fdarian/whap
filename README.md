@@ -37,13 +37,30 @@ A comprehensive development environment for testing WhatsApp integrations withou
 ### Installation
 
 ```bash
-# Clone the repository
+brew install fdarian/tap/whap
+```
+
+<details>
+<summary><b>Other installation options</b></summary>
+
+#### Run with bunx
+
+```bash
+bunx whap server  # or: bunx whap tui
+```
+
+Requires [Bun](https://bun.sh/) installed.
+
+#### From source
+
+```bash
 git clone https://github.com/fdarian/whap.git
 cd whap
-
-# Install dependencies
 bun install
+bun whap server
 ```
+
+</details>
 
 ### Basic Usage
 
