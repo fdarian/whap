@@ -38,6 +38,8 @@ A comprehensive development environment for testing WhatsApp integrations withou
 
 ```bash
 brew install fdarian/tap/whap
+
+whap --version
 ```
 
 <details>
@@ -66,10 +68,10 @@ bun whap server
 
 ```bash
 # Terminal 1: Start the mock server
-bun whap server
+whap server
 
 # Terminal 2: Start the CLI interface
-bun whap tui
+whap tui
 ```
 
 The mock server runs on port **3010** and provides WhatsApp Cloud API compatible endpoints.
