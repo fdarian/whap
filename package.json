@@ -7,11 +7,15 @@
 		"whap": "./bin.mjs"
 	},
 	"files": [
-		"bin.mjs"
+		"bin.mjs",
+		"src",
+		"templates",
+		"schema",
+		"whap.json.example"
 	],
 	"scripts": {
 		"whap": "bun run src/index.ts",
-		"build": "bun scripts/build-npm.ts",
+		"build": "bun scripts/build-binary.ts",
 		"dev:server": "bun run --watch src/server/server.ts",
 		"test": "vitest run",
 		"test:watch": "vitest --watch",
