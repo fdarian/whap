@@ -9,6 +9,10 @@
 	"files": [
 		"bin.mjs",
 		"src",
+		"!src/**/*.test.ts",
+		"!src/**/*.test.tsx",
+		"!src/**/*.spec.ts",
+		"!src/**/*.spec.tsx",
 		"templates",
 		"schema",
 		"whap.json.example"
