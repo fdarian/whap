@@ -2,6 +2,8 @@
 tasks.json
 tasks/ 
 
+.claude/worktrees/*
+
 # From Bun's repo
 .DS_Store
 .env
