@@ -1,8 +1,8 @@
 import { Hono } from 'hono'
 import {
+	mockStore,
 	type StoredMessage,
 	type StoredWebhookMessage,
-	mockStore,
 } from '../store/memory-store.ts'
 import type { Template, TemplateComponent } from '../types/api-types.ts'
 

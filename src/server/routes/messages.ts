@@ -4,8 +4,8 @@ import { getWebhookUrl } from '../config.ts'
 import { getWebhookSecret } from '../configuration.ts'
 import {
 	computeHmacSignatureHeader,
-	serializeJsonWithEscapedUnicode,
 	SIGNATURE_HEADER,
+	serializeJsonWithEscapedUnicode,
 } from '../middleware/hmac-signature.ts'
 import type { StoredMessage } from '../store/memory-store.ts'
 import { mockStore } from '../store/memory-store.ts'

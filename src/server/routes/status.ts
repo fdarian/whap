@@ -109,4 +109,4 @@ statusRouter.get('/stats', (c) => {
 	}
 })
 
-export { statusRouter, startStatsInterval, stopStatsInterval }
+export { startStatsInterval, statusRouter, stopStatsInterval }
