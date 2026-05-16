@@ -6,10 +6,22 @@ on:
       - 'v*'
 
 jobs:
-  release:
+  build:
+    name: Build ${{ matrix.os }}-${{ matrix.arch }}
     runs-on: ubuntu-latest
     permissions:
       contents: write
+    strategy:
+      matrix:
+        include:
+          - os: darwin
+            arch: arm64
+          - os: darwin
+            arch: x64
+          - os: linux
+            arch: arm64
+          - os: linux
+            arch: x64
 
     steps:
       - name: Checkout code
@@ -21,19 +33,39 @@ jobs:
           bun-version: latest
 
       - name: Install dependencies
-        run: bun install
+        run: bun install --frozen-lockfile
 
-      - name: Build macOS binary
-        run: bun build src/index.ts --compile --outfile whap --target=bun-darwin-x64
+      - name: Build binary
+        run: bun scripts/build-binary.ts --target=${{ matrix.os }}-${{ matrix.arch }}
 
-      - name: Build Linux binary
-        run: bun build src/index.ts --compile --outfile whap-linux --target=bun-linux-x64
+      - name: Create tarball
+        run: tar -czf whap-${{ matrix.os }}-${{ matrix.arch }}.tar.gz -C dist whap-${{ matrix.os }}-${{ matrix.arch }}
 
-      - name: Create macOS tarball
-        run: tar -czf whap-darwin-x64.tar.gz whap
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: whap-${{ matrix.os }}-${{ matrix.arch }}
+          path: whap-${{ matrix.os }}-${{ matrix.arch }}.tar.gz
 
-      - name: Create Linux tarball
-        run: tar -czf whap-linux-x64.tar.gz whap-linux
+  release-and-brew:
+    name: Create Release and Update Homebrew Formula
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: whap-*
+          merge-multiple: true
+
+      - name: List downloaded assets
+        run: ls -la
 
       - name: Create Release and Upload Assets
         uses: softprops/action-gh-release@v2
@@ -41,21 +73,21 @@ jobs:
           tag_name: ${{ github.ref_name }}
           name: Release ${{ github.ref_name }}
           generate_release_notes: true
-          files: |
-            whap-darwin-x64.tar.gz
-            whap-linux-x64.tar.gz
-
-      - name: Calculate SHA256 checksum
-        id: checksum
-        run: |
-          SHA256=$(sha256sum whap-darwin-x64.tar.gz | cut -d' ' -f1)
-          echo "sha256=$SHA256" >> $GITHUB_OUTPUT
+          files: whap-*.tar.gz
 
       - name: Extract version from tag
         id: version
         run: |
           VERSION=${GITHUB_REF_NAME#v}
           echo "version=$VERSION" >> $GITHUB_OUTPUT
+
+      - name: Calculate SHA256 checksums
+        id: checksums
+        run: |
+          echo "darwin-arm64=$(sha256sum whap-darwin-arm64.tar.gz | cut -d' ' -f1)" >> $GITHUB_OUTPUT
+          echo "darwin-x64=$(sha256sum whap-darwin-x64.tar.gz | cut -d' ' -f1)" >> $GITHUB_OUTPUT
+          echo "linux-arm64=$(sha256sum whap-linux-arm64.tar.gz | cut -d' ' -f1)" >> $GITHUB_OUTPUT
+          echo "linux-x64=$(sha256sum whap-linux-x64.tar.gz | cut -d' ' -f1)" >> $GITHUB_OUTPUT
 
       - name: Checkout tap repository
         uses: actions/checkout@v4
@@ -67,30 +99,63 @@ jobs:
       - name: Update Homebrew formula in tap
         run: |
           VERSION="${{ steps.version.outputs.version }}"
-          SHA256="${{ steps.checksum.outputs.sha256 }}"
-          
-          # Create Formula directory if it doesn't exist
+          SHA_DARWIN_ARM64="${{ steps.checksums.outputs.darwin-arm64 }}"
+          SHA_DARWIN_X64="${{ steps.checksums.outputs.darwin-x64 }}"
+          SHA_LINUX_ARM64="${{ steps.checksums.outputs.linux-arm64 }}"
+          SHA_LINUX_X64="${{ steps.checksums.outputs.linux-x64 }}"
+
           mkdir -p homebrew-tap/Formula
-          
-          # Create or update the formula
-          cat > homebrew-tap/Formula/whap.rb << EOF
+
+          cat > homebrew-tap/Formula/whap.rb << RUBY
           class Whap < Formula
             desc "CLI and mock server for testing WhatsApp integration"
             homepage "https://github.com/fdarian/whap"
             version "$VERSION"
-            url "https://github.com/fdarian/whap/releases/download/v$VERSION/whap-darwin-x64.tar.gz"
-            sha256 "$SHA256"
             license "MIT"
-          
-            def install
-              bin.install "whap"
+
+            on_macos do
+              on_arm do
+                url "https://github.com/fdarian/whap/releases/download/v$VERSION/whap-darwin-arm64.tar.gz"
+                sha256 "$SHA_DARWIN_ARM64"
+
+                def install
+                  bin.install "whap-darwin-arm64" => "whap"
+                end
+              end
+              on_intel do
+                url "https://github.com/fdarian/whap/releases/download/v$VERSION/whap-darwin-x64.tar.gz"
+                sha256 "$SHA_DARWIN_X64"
+
+                def install
+                  bin.install "whap-darwin-x64" => "whap"
+                end
+              end
             end
-          
+
+            on_linux do
+              on_arm do
+                url "https://github.com/fdarian/whap/releases/download/v$VERSION/whap-linux-arm64.tar.gz"
+                sha256 "$SHA_LINUX_ARM64"
+
+                def install
+                  bin.install "whap-linux-arm64" => "whap"
+                end
+              end
+              on_intel do
+                url "https://github.com/fdarian/whap/releases/download/v$VERSION/whap-linux-x64.tar.gz"
+                sha256 "$SHA_LINUX_X64"
+
+                def install
+                  bin.install "whap-linux-x64" => "whap"
+                end
+              end
+            end
+
             test do
               system "#{bin}/whap", "--version"
             end
           end
-          EOF
+          RUBY
 
       - name: Commit and push formula update to tap
         run: |
