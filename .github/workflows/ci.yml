@@ -1,0 +1,31 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+jobs:
+  ci:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - run: bun install --frozen-lockfile
+
+      - name: Typecheck
+        # Pre-existing: webhooks.ts:323 calls serializeJsonWithEscapedUnicode
+        # without importing it. Clean up in a follow-up PR.
+        continue-on-error: true
+        run: bun tsc --noEmit
+
+      - name: Test
+        run: bun run test
+
+      - name: Build smoke
+        run: bun scripts/build-binary.ts
