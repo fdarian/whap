@@ -13,10 +13,10 @@ The WhatsApp Template Testing System allows developers to create, validate, and 
 1. **Start the mock server and CLI**:
    ```bash
    # Terminal 1: Start mock server
-   pnpm run start:server
+   bun whap server
    
-   # Terminal 2: Start CLI interface  
-   pnpm run start:cli
+   # Terminal 2: Start CLI interface
+   bun whap tui
    ```
 
 2. **Create your first template** in the `templates/` directory
@@ -467,7 +467,7 @@ For customer support:
 
 ### Interactive Testing Workflow
 
-1. **Start the CLI** with `pnpm run start:cli`
+1. **Start the CLI** with `bun whap tui`
 2. **Select template mode** when composing a message
 3. **Choose a template** from the available list
 4. **Enter variable values** when prompted
