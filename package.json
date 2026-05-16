@@ -2,17 +2,32 @@
 	"name": "whap",
 	"version": "0.2.1",
 	"description": "CLI and mock server for testing WhatsApp integration",
+	"license": "MIT",
 	"type": "module",
 	"bin": {
-		"whap": "./dist/whap"
+		"whap": "./bin.mjs"
 	},
+	"files": [
+		"bin.mjs",
+		"src",
+		"!src/**/*.test.ts",
+		"!src/**/*.test.tsx",
+		"!src/**/*.spec.ts",
+		"!src/**/*.spec.tsx",
+		"templates",
+		"schema",
+		"whap.json.example"
+	],
 	"scripts": {
 		"whap": "bun run src/index.ts",
-		"build": "bun build src/index.ts --compile --outfile dist/whap ",
+		"build": "bun scripts/build-binary.ts",
+		"build:all": "bun scripts/build-all.ts",
 		"dev:server": "bun run --watch src/server/server.ts",
 		"test": "vitest run",
 		"test:watch": "vitest --watch",
-		"test:ui": "vitest --ui"
+		"test:ui": "vitest --ui",
+		"version": "changeset version",
+		"release": "bun scripts/build-all.ts && changeset publish"
 	},
 	"dependencies": {
 		"@effect/platform-bun": "4.0.0-beta.59",
@@ -36,6 +51,7 @@
 	},
 	"devDependencies": {
 		"@biomejs/biome": "^2.4.15",
+		"@changesets/cli": "^2.31.0",
 		"@types/bun": "^1.2.20",
 		"@types/json-schema": "^7.0.15",
 		"@types/ws": "^8.18.1",
