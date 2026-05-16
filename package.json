@@ -17,12 +17,6 @@
 		"test:watch": "vitest --watch",
 		"test:ui": "vitest --ui"
 	},
-	"optionalDependencies": {
-		"whap-darwin-arm64": "0.2.1",
-		"whap-darwin-x64": "0.2.1",
-		"whap-linux-x64": "0.2.1",
-		"whap-linux-arm64": "0.2.1"
-	},
 	"dependencies": {
 		"@effect/platform-bun": "4.0.0-beta.59",
 		"@hono/node-server": "^1.14.2",
