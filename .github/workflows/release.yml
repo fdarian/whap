@@ -23,6 +23,9 @@ jobs:
       - name: Install dependencies
         run: bun install
 
+      - name: Compile TypeScript
+        run: bun tsc --noEmit
+
       - name: Build macOS binary
         run: bun build src/index.ts --compile --outfile whap --target=bun-darwin-x64
 
@@ -68,10 +71,10 @@ jobs:
         run: |
           VERSION="${{ steps.version.outputs.version }}"
           SHA256="${{ steps.checksum.outputs.sha256 }}"
-          
+
           # Create Formula directory if it doesn't exist
           mkdir -p homebrew-tap/Formula
-          
+
           # Create or update the formula
           cat > homebrew-tap/Formula/whap.rb << EOF
           class Whap < Formula
@@ -81,11 +84,11 @@ jobs:
             url "https://github.com/fdarian/whap/releases/download/v$VERSION/whap-darwin-x64.tar.gz"
             sha256 "$SHA256"
             license "MIT"
-          
+
             def install
               bin.install "whap"
             end
-          
+
             test do
               system "#{bin}/whap", "--version"
             end
