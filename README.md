@@ -1,3 +1,5 @@
+
+
 # Whap
 
 ![CodeRabbit Pull Request Reviews](https://img.shields.io/coderabbit/prs/github/fdarian/whap?utm_source=oss&utm_medium=github&utm_campaign=fdarian%2Fwhap&labelColor=171717&color=FF570A&link=https%3A%2F%2Fcoderabbit.ai&label=CodeRabbit+Reviews)
@@ -97,7 +99,7 @@ bun whap server
 #### 3. CLI Arguments
 
 ```bash
-bun whap server --port 8080
+bun whap server --webhook-url 1234567890:http://localhost:4000/webhook
 ```
 
 ### Configuration Priority
